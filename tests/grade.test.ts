@@ -225,3 +225,47 @@ describe('실제 급수표 문장 회귀', () => {
     });
   }
 });
+
+/* ────────────────────────────────────────────────────────────────
+   8way 교차검증에서 나온 결함들의 회귀 테스트.
+   전부 «실제로 재현해 본 뒤» 고친 것이라, 여기가 깨지면 그 결함이 돌아온 것이다.
+   ──────────────────────────────────────────────────────────────── */
+describe('교차검증 회귀', () => {
+  it('공백이 하나도 없는 짝을 띄어쓰기 오류라고 하지 않는다', () => {
+    // 단어 «길이»를 비교하던 때는 '가' vs '나나' 가 띄어쓰기 오류로 잡혔다
+    expect(hasSpacingDiff('가', '나나')).toBe(false);
+    expect(grade('가', '나나').tags).not.toContain('띄어쓰기');
+  });
+
+  it('띄어쓰기를 실제로 다르게 쓰면 잡는다', () => {
+    expect(hasSpacingDiff('나는 학교', '나는학교')).toBe(true);
+    expect(grade('나는 학교에', '나는학교에', { strictness: 'space' }).tags).toContain('띄어쓰기');
+  });
+
+  it('문장부호는 종류만이 아니라 붙은 자리까지 본다', () => {
+    expect(hasPunctDiff('가.나', '가나.')).toBe(true);
+    expect(hasPunctDiff('가나.', '가나.')).toBe(false);
+  });
+
+  it('받침 ㅅ/ㅆ 은 된소리가 아니라 받침 문제로 센다', () => {
+    const r = grade('있다', '잇다');
+    expect(r.tags).toContain('받침');
+    expect(r.tags).not.toContain('된소리');
+  });
+
+  it('첫소리의 된소리는 그대로 된소리로 센다', () => {
+    expect(grade('가방', '까방').tags).toContain('된소리');
+  });
+
+  it('겹받침이 넘어간 연음도 연음으로 잡는다', () => {
+    // 닭이 → 달기 : 겹받침 ㄺ 의 뒤 소리만 다음 글자로 넘어갔다
+    expect(grade('닭이', '달기').tags).toContain('연음');
+    expect(grade('밥이', '바비').tags).toContain('연음');
+  });
+
+  it('통계도 점수와 같은 정본(isCorrect)을 쓴다', () => {
+    const results = [grade('학교', '학교'), grade('학교', '학꾜')];
+    expect(countCorrect(results)).toBe(1);
+    expect(tagStats(results).length).toBeGreaterThan(0);
+  });
+});

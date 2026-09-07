@@ -195,22 +195,40 @@ export interface Recorder {
 
 export async function startRecording(): Promise<Recorder> {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const mimeType = recordMimeType();
-  const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-  const chunks: BlobPart[] = [];
-  rec.ondataavailable = (e) => {
-    if (e.data.size) chunks.push(e.data);
-  };
-  rec.start();
   const cleanup = () => stream.getTracks().forEach((t) => t.stop());
+  const mimeType = recordMimeType();
+  let rec: MediaRecorder;
+  const chunks: BlobPart[] = [];
+  try {
+    rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    rec.ondataavailable = (e) => {
+      if (e.data.size) chunks.push(e.data);
+    };
+    rec.start();
+  } catch (e) {
+    // 여기서 스트림을 놓아 주지 않으면 마이크가 켜진 채로 남는다(빨간 점이 안 꺼진다)
+    cleanup();
+    throw e;
+  }
   return {
     stop: () =>
       new Promise<Blob>((resolve) => {
-        rec.onstop = () => {
+        const done = () => {
           cleanup();
           resolve(new Blob(chunks, { type: mimeType || 'audio/webm' }));
         };
-        rec.stop();
+        // 이미 멈춘 녹음기에 stop() 을 부르면 onstop 이 오지 않아 영영 기다리게 된다
+        if (rec.state === 'inactive') {
+          done();
+          return;
+        }
+        rec.onstop = done;
+        rec.onerror = done;
+        try {
+          rec.stop();
+        } catch {
+          done();
+        }
       }),
     cancel: () => {
       try {
@@ -246,15 +264,48 @@ export async function playRecording(blob: Blob, opts: SpeakOptions = {}): Promis
   try {
     for (let i = 0; i < times; i++) {
       if (opts.signal?.aborted) return;
+      let failed = false;
       await new Promise<void>((resolve) => {
         const audio = new Audio(url);
+        stopCurrentAudio();
         currentAudio = audio;
         audio.playbackRate = Math.max(0.5, Math.min(2, opts.rate ?? 1));
-        const finish = () => resolve();
-        audio.onended = finish;
-        audio.onerror = finish;
-        audio.play().catch(finish);
+        let done = false;
+        const finish = (bad = false) => {
+          if (done) return;
+          done = true;
+          if (bad) failed = true;
+          opts.signal?.removeEventListener('abort', onAbort);
+          if (currentAudio === audio) currentAudio = null;
+          resolve();
+        };
+        // pause() 는 ended 를 울리지 않는다. 중단 경로에서 이 약속을 직접 끝내지 않으면
+        // 재생 Promise 가 영영 대기하고 blob URL 도 해제되지 않는다.
+        function onAbort(): void {
+          try {
+            audio.pause();
+          } catch {
+            /* 이미 멈춤 */
+          }
+          finish();
+        }
+        stopHooks.add(onAbort);
+        audio.onended = () => {
+          stopHooks.delete(onAbort);
+          finish();
+        };
+        audio.onerror = () => {
+          stopHooks.delete(onAbort);
+          finish(true);
+        };
+        opts.signal?.addEventListener('abort', onAbort, { once: true });
+        audio.play().catch(() => {
+          stopHooks.delete(onAbort);
+          finish(true);
+        });
       });
+      // 재생이 실패했으면 «들려줬다»고 보고하면 안 된다 — TTS 로 넘어갈 기회를 준다
+      if (failed) throw new Error('녹음을 재생할 수 없어요');
       if (i < times - 1) await wait(opts.betweenMs ?? 900, opts.signal);
     }
   } finally {
@@ -265,6 +316,11 @@ export async function playRecording(blob: Blob, opts: SpeakOptions = {}): Promis
 
 export function stopAudio(): void {
   stopSpeaking();
+  stopCurrentAudio();
+}
+
+/** 재생 중인 오디오를 멈추고, 그것을 기다리던 약속까지 확실히 끝낸다 */
+function stopCurrentAudio(): void {
   if (currentAudio) {
     try {
       currentAudio.pause();
@@ -273,7 +329,14 @@ export function stopAudio(): void {
     }
     currentAudio = null;
   }
+  for (const hook of [...stopHooks]) {
+    stopHooks.delete(hook);
+    hook();
+  }
 }
+
+/** 지금 재생을 기다리는 약속들의 «끝내기» 갈고리 */
+const stopHooks = new Set<() => void>();
 
 /**
  * 한 문항을 «지금 있는 최선의 방법»으로 들려준다.

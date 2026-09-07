@@ -44,23 +44,37 @@ export function load(): AppState {
   return cache;
 }
 
+/** 마지막 저장이 실제로 디스크에 닿았는가. 화면이 «저장됐다»고 거짓말하지 않으려고 남긴다. */
+let lastSaveOk = true;
+
+export function saveFailed(): boolean {
+  return !lastSaveOk;
+}
+
 export function save(): void {
   if (!cache) return;
   if (cache.attempts.length > MAX_ATTEMPTS) {
     cache.attempts = cache.attempts.slice(-MAX_ATTEMPTS);
   }
-  try {
-    localStorage.setItem(KEY, JSON.stringify(cache));
-  } catch {
-    // 용량이 찼으면 오래된 기록을 절반 버리고 한 번 더 시도한다
-    cache.attempts = cache.attempts.slice(-Math.floor(MAX_ATTEMPTS / 2));
-    try {
-      localStorage.setItem(KEY, JSON.stringify(cache));
-    } catch {
-      /* 그래도 안 되면 이번 저장은 포기 — 화면 동작은 막지 않는다 */
+  lastSaveOk = persist();
+  if (!lastSaveOk) {
+    // 용량이 찼다. 기록을 «지금 가진 수의 절반»씩 실제로 줄이며 다시 시도한다.
+    // 고정 상수(-150)로 자르면 기록이 150개 미만일 때 한 개도 안 줄어 재시도가 무의미해진다.
+    while (!lastSaveOk && cache.attempts.length > 0) {
+      cache.attempts = cache.attempts.slice(Math.ceil(cache.attempts.length / 2));
+      lastSaveOk = persist();
     }
   }
   for (const fn of listeners) fn();
+}
+
+function persist(): boolean {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(cache));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export function subscribe(fn: () => void): () => void {
@@ -92,6 +106,8 @@ export function deleteList(id: string): void {
   const s = load();
   s.lists = s.lists.filter((l) => l.id !== id);
   s.attempts = s.attempts.filter((a) => a.listId !== id);
+  // 지운 급수표를 가리키는 lastListId 를 남겨 두면 다음 세션의 홈 화면이 빈 곳을 가리킨다
+  if (s.lastListId === id) s.lastListId = undefined;
   save();
 }
 

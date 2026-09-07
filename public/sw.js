@@ -29,8 +29,11 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put('./index.html', copy)).catch(() => undefined);
+          // 5xx·404 를 그대로 담으면 다음번 오프라인에서 그 오류 화면이 앱 대신 뜬다
+          if (res && res.status === 200) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put('./index.html', copy)).catch(() => undefined);
+          }
           return res;
         })
         .catch(() => caches.match('./index.html').then((r) => r || caches.match('./')).then((r) => r || Response.error())),

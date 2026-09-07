@@ -25,6 +25,7 @@ export class WritingPad {
   private strokes: Stroke[] = [];
   private current: Stroke | null = null;
   private penSeen = false;
+  private activePointer: number | null = null;
   private cells: number;
   private cssWidth = 0;
   private cssHeight = 0;
@@ -70,6 +71,7 @@ export class WritingPad {
       if (e.pointerType === 'pen') this.penSeen = true;
       if (this.shouldIgnore(e)) return;
       this.canvas.setPointerCapture(e.pointerId);
+      this.activePointer = e.pointerId;
       const width = e.pointerType === 'pen' ? 2 + (e.pressure || 0.5) * 4 : 4;
       this.current = { points: [pos(e)], width };
       this.strokes.push(this.current);
@@ -79,13 +81,18 @@ export class WritingPad {
 
     this.canvas.addEventListener('pointermove', (e) => {
       if (!this.current || this.shouldIgnore(e)) return;
+      if (this.activePointer !== null && e.pointerId !== this.activePointer) return;
       this.current.points.push(pos(e));
       this.draw();
       e.preventDefault();
     });
 
-    const end = () => {
+    // 손바닥이 먼저 떨어질 때 그 pointerup 이 펜 획을 끊어 버리면 글씨가 토막난다.
+    // 지금 획을 그리고 있는 포인터의 종료만 받아들인다.
+    const end = (e: PointerEvent) => {
       if (!this.current) return;
+      if (this.activePointer !== null && e.pointerId !== this.activePointer) return;
+      this.activePointer = null;
       this.current = null;
       this.onChange?.();
     };

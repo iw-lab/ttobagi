@@ -42,7 +42,9 @@ export function resultView(params: Params): View {
     );
 
     // 손글씨 채점 — 썸네일을 죽 늘어놓고 ○/× 만 누른다
-    const inkAnswers = attempt!.answers.filter((a) => a.ink);
+    // 손으로 쓰다가 한 획도 안 그리고 낸 답은 ink 가 없다. 그것까지 여기 세워 두지 않으면
+    // 「채점 전 n개」라고 말해 놓고 정작 채점할 자리가 없는 화면이 된다.
+    const inkAnswers = attempt!.answers.filter((a) => a.ink || (!a.confirmed && !a.text));
     if (inkAnswers.length) {
       el.append(
         h(
@@ -58,7 +60,9 @@ export function resultView(params: Params): View {
                 'div',
                 { class: `ink-cell ${a.confirmed ? (isCorrect(a.verdict) ? 'ok' : 'no') : ''}` },
                 h('div', { class: 'ink-answer' }, itemText(a.itemId)),
-                h('img', { class: 'ink-img', src: a.ink!, alt: '학생이 쓴 글씨' }),
+                a.ink
+                  ? h('img', { class: 'ink-img', src: a.ink, alt: '학생이 쓴 글씨' })
+                  : h('div', { class: 'ink-empty muted small' }, '빈 답'),
                 h(
                   'div',
                   { class: 'row center' },

@@ -68,6 +68,7 @@ export function runView(params: Params): View {
   let blocks: BlockInput | null = null;
   let keyboardInput: HTMLInputElement | null = null;
   let destroyed = false;
+  let revealTimer: number | undefined;
 
   const el = h('div', { class: 'view run-view' });
   const body = h('div', {});
@@ -193,7 +194,11 @@ export function runView(params: Params): View {
       spellcheck: 'false',
       placeholder: '들은 대로 써 보세요',
       onkeydown: (e: KeyboardEvent) => {
-        if (e.key === 'Enter') submitBtn.click();
+        // 한글은 Enter 로 조합을 확정한다. isComposing 을 안 보면 '학교'를 확정하려던 Enter 가
+        // 그대로 제출이 되어 시험에서 답이 반쯤 쓰인 채 넘어간다.
+        // (일부 브라우저는 isComposing 대신 keyCode 229 로만 조합 중임을 알린다)
+        const composing = e.isComposing || (e as KeyboardEvent & { keyCode?: number }).keyCode === 229;
+        if (e.key === 'Enter' && !composing) submitBtn.click();
       },
     }) as HTMLInputElement;
     return h('div', { class: 'input-area' }, keyboardInput);
@@ -228,9 +233,11 @@ export function runView(params: Params): View {
         onclick: () => {
           revealBox.textContent = item.text;
           revealBox.hidden = false;
-          window.setTimeout(() => {
+          if (revealTimer) window.clearTimeout(revealTimer);
+          revealTimer = window.setTimeout(() => {
             revealBox.hidden = true;
-          }, Math.max(1, settings.visualSeconds) * 1000);
+            revealTimer = undefined;
+          }, Math.max(1, settings.visualSeconds || 3) * 1000);
         },
       },
       `👀 ${settings.visualSeconds}초 보여주기`,
@@ -324,7 +331,8 @@ export function runView(params: Params): View {
           'div',
           { class: 'listen-row' },
           listenBtn,
-          settings.visualMode ? visualBtn : null,
+          // 시험 중에 '보여주기'는 정답을 통째로 띄운다 — 힌트와 같은 문턱으로 막는다
+          mode !== 'exam' && settings.visualMode ? visualBtn : null,
           mode !== 'exam' && settings.allowHint ? hintBtn : null,
         ),
         revealBox,
@@ -388,6 +396,7 @@ export function runView(params: Params): View {
       'select',
       {
         class: 'input',
+        disabled: mode === 'exam',
         onchange: (e: Event) => {
           settings.strictness = (e.target as HTMLSelectElement).value as Strictness;
           setSettings({ strictness: settings.strictness });
@@ -426,8 +435,18 @@ export function runView(params: Params): View {
         h('label', { class: 'field' }, h('span', { class: 'field-label' }, '입력 방법'), modeSel),
         h('label', { class: 'field' }, h('span', { class: 'field-label' }, '읽어 주는 횟수'), repeat),
         h('label', { class: 'field' }, h('span', { class: 'field-label' }, '읽기 속도'), rate, rateLabel),
-        h('label', { class: 'field' }, h('span', { class: 'field-label' }, '채점 기준'), strict),
-        h('label', { class: 'field-inline' }, visual, h('span', {}, '보여주기 단추 (소리 대신 눈으로)')),
+        h(
+          'label',
+          { class: 'field' },
+          h('span', { class: 'field-label' }, '채점 기준'),
+          strict,
+          // 시험 도중에 기준을 바꾸면 앞 문항은 옛 기준으로 채점된 채 결과만 새 기준으로 다시
+          // 계산되어 점수와 표시가 어긋난다. 시험에서는 시작할 때의 기준으로 잠근다.
+          mode === 'exam' ? h('span', { class: 'muted small' }, '시험 중에는 바꿀 수 없어요') : null,
+        ),
+        mode !== 'exam'
+          ? h('label', { class: 'field-inline' }, visual, h('span', {}, '보여주기 단추 (소리 대신 눈으로)'))
+          : null,
         mode !== 'exam' ? h('label', { class: 'field-inline' }, hint, h('span', {}, '첫소리 힌트 허용')) : null,
       ),
     );
@@ -441,6 +460,7 @@ export function runView(params: Params): View {
     title: `${list.title} — ${RUN_MODE_LABEL[mode]}`,
     destroy: () => {
       destroyed = true;
+      if (revealTimer) window.clearTimeout(revealTimer);
       abort.abort();
       stopAudio();
       pad?.destroy();

@@ -239,8 +239,9 @@ function tagPair(e: Syllable, a: Syllable, tags: Set<ErrorTag>, nextExpected: Sy
     const nasalContext = nextCho === 'ㄴ' || nextCho === 'ㅁ' || nextCho === 'ㄹ';
     const liquidContext = nextCho === 'ㄹ' || nextCho === 'ㄴ';
 
+    // 된소리는 첫소리(초성)에서 일어나는 일이다. 받침의 ㅅ/ㅆ(잇다↔있다)은
+    // 발음이 아니라 표기 문제라 '받침'으로 두어야 교사에게 쓸모 있는 통계가 된다.
     if (isComplexJong(e.jong) || isComplexJong(a.jong)) tags.add('겹받침');
-    else if (TENSE_PAIRS[e.jong] === a.jong) tags.add('된소리');
     else if (nasalContext && NASALIZED[e.jong] === a.jong) tags.add('비음화');
     else if (
       liquidContext &&
@@ -268,12 +269,14 @@ function tagCrossSyllable(
     const a2 = decompose(actual[aiNext]);
     if (!e1 || !e2 || !a1 || !a2) continue;
 
-    // 정답은 받침이 있는데 답안에서 사라지고, 그 소리가 뒷글자 초성으로 옮겨갔다
-    const movedAway = e1.jong !== '' && a1.jong === '' && e2.cho === 'ㅇ' && a2.cho !== 'ㅇ';
-    if (!movedAway) continue;
-
+    // 정답은 받침이 있는데 답안에서 그 소리가 뒷글자 초성으로 옮겨갔다.
+    // 홑받침이면 받침이 통째로 비고(밥이→바비), 겹받침이면 앞 소리만 남는다(닭이→달기).
     const jongSounds = splitJong(e1.jong);
     const moved = jongSounds[jongSounds.length - 1];
+    const kept = jongSounds.length > 1 ? jongSounds[0] : '';
+    const movedAway =
+      e1.jong !== '' && a1.jong === kept && e2.cho === 'ㅇ' && a2.cho !== 'ㅇ';
+    if (!movedAway) continue;
     const isPalatal =
       (e1.jong === 'ㄷ' || e1.jong === 'ㅌ') &&
       (e2.jung === 'ㅣ' || e2.jung === 'ㅕ') &&
@@ -314,23 +317,36 @@ export function hasSpacingDiff(expected: string, actual: string): boolean {
   // 한쪽이 비었으면 '띄어쓰기가 다르다'고 말할 게 없다 (빈 답안은 글자빠짐으로 잡힌다)
   if (e === '' || a === '') return false;
   if (stripSpace(e) !== stripSpace(a)) {
-    // 글자 자체가 다르면 띄어쓰기만 따로 논하기 어렵다 → 공백 개수/위치 패턴만 비교
-    return spacePattern(e) !== spacePattern(a);
+    // 글자 자체가 다르면 띄어쓰기만 따로 논할 수 없다. 단어 길이를 비교하면
+    // '가' vs '나나' 처럼 공백이 하나도 없는 짝까지 띄어쓰기 오류가 되어 통계가 오염된다.
+    // 그래서 «공백을 몇 번 넣었는가»만 본다.
+    return countSpaces(e) !== countSpaces(a);
   }
   return e !== a;
 }
 
-function spacePattern(text: string): string {
-  return text
-    .split(' ')
-    .map((w) => w.length)
-    .join('-');
+function countSpaces(text: string): number {
+  let n = 0;
+  for (const ch of text) if (ch === ' ') n++;
+  return n;
 }
 
 export function hasPunctDiff(expected: string, actual: string): boolean {
-  const e = (normalizeBase(expected).match(PUNCT_RE) ?? []).join('');
-  const a = (normalizeBase(actual).match(PUNCT_RE) ?? []).join('');
-  return e !== a;
+  // 종류만 비교하면 '가.나' 와 '가나.' 가 같아진다 — 부호가 «몇 번째 글자 뒤에» 붙었는지까지 본다.
+  return punctSignature(expected) !== punctSignature(actual);
+}
+
+// PUNCT_RE 는 /g 라 test() 가 lastIndex 를 물고 있어 한 글자씩 검사하면 결과가 번갈아 나온다.
+const PUNCT_ONE = new RegExp(PUNCT_RE.source);
+
+function punctSignature(text: string): string {
+  const out: string[] = [];
+  let at = 0;
+  for (const ch of normalizeBase(text)) {
+    if (PUNCT_ONE.test(ch)) out.push(`${at}${ch}`);
+    else if (ch !== ' ') at++;
+  }
+  return out.join('|');
 }
 
 /* ────────────────────────────── 채점 본체 ────────────────────────────── */
@@ -440,7 +456,7 @@ export function countCorrect(results: GradeResult[]): number {
 export function tagStats(results: GradeResult[]): { tag: ErrorTag; count: number }[] {
   const counts = new Map<ErrorTag, number>();
   for (const r of results) {
-    if (r.verdict === 'correct') continue;
+    if (isCorrect(r.verdict)) continue;
     for (const t of r.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
   }
   return [...counts.entries()]

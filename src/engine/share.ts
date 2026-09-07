@@ -7,6 +7,7 @@
  */
 
 import qrcode from 'qrcode-generator';
+import { isCorrect } from './grade';
 import { newId, type Attempt, type WordList } from './types';
 
 const PREFIX = 'T1';
@@ -95,15 +96,15 @@ export async function decode(code: string): Promise<Payload> {
   } else {
     throw new Error('공유 코드 형식을 알 수 없어요.');
   }
-  const parsed = JSON.parse(json) as Payload;
-  if (parsed.t !== 'l' && parsed.t !== 'r') throw new Error('공유 코드 내용을 알 수 없어요.');
-  return parsed;
+  const parsed: unknown = JSON.parse(json);
+  return validate(parsed);
 }
 
 /* ───────────────────────── 급수표 ↔ 코드 ───────────────────────── */
 
 export async function encodeList(list: WordList): Promise<string> {
-  const points = list.items.map((i) => i.point);
+  // undefined 를 그대로 두면 JSON 배열에서 null 로 바뀌어 받는 쪽 타입이 깨진다
+  const points = list.items.map((i) => i.point ?? '');
   const payload: ListPayload = {
     t: 'l',
     n: list.title,
@@ -123,7 +124,7 @@ export function payloadToList(payload: ListPayload): WordList {
     items: payload.i.map((text, idx) => ({
       id: newId('i'),
       text,
-      point: payload.p?.[idx],
+      point: payload.p?.[idx] || undefined,
     })),
     createdAt: now,
     updatedAt: now,
@@ -139,10 +140,41 @@ export async function encodeResult(attempt: Attempt, itemText: (id: string) => s
     a: attempt.answers.map((a) => [
       itemText(a.itemId),
       a.text,
-      a.verdict === 'correct' ? 1 : a.verdict === 'partial' ? 2 : 0,
+      // 손글씨는 사람이 ○/× 로 확정하기 전까지 정답이 아니다.
+      // confirmed 를 안 보면 미확정 답이 결과 링크에서 정답으로 굳는다.
+      !a.confirmed ? 3 : isCorrect(a.verdict) ? 1 : a.verdict === 'partial' ? 2 : 0,
     ]),
   };
   return encode(payload);
+}
+
+/**
+ * 남이 만든 주소를 그대로 믿지 않는다. 형태만 맞고 알맹이가 빈 코드(T1p + '{"t":"l"}')를
+ * 통과시키면 화면에서 payload.i.map 이 터진다 — 여기서 «열 수 없는 코드»로 정직하게 끝낸다.
+ */
+function validate(v: unknown): Payload {
+  const bad = () => new Error('공유 코드 내용을 알 수 없어요.');
+  if (typeof v !== 'object' || v === null) throw bad();
+  const o = v as Record<string, unknown>;
+  const strings = (x: unknown) => Array.isArray(x) && x.every((e) => typeof e === 'string');
+
+  if (o.t === 'l') {
+    if (!strings(o.i) || (o.i as string[]).length === 0) throw bad();
+    if (o.p !== undefined && !strings(o.p)) throw bad();
+    if (o.n !== undefined && typeof o.n !== 'string') throw bad();
+    if (o.v !== undefined && typeof o.v !== 'string') throw bad();
+    return o as unknown as ListPayload;
+  }
+  if (o.t === 'r') {
+    if (!Array.isArray(o.a)) throw bad();
+    const rows = o.a as unknown[];
+    const ok = rows.every(
+      (r) => Array.isArray(r) && typeof r[0] === 'string' && typeof r[1] === 'string' && typeof r[2] === 'number',
+    );
+    if (!ok) throw bad();
+    return o as unknown as ResultPayload;
+  }
+  throw bad();
 }
 
 export type { ListPayload, ResultPayload, Payload };

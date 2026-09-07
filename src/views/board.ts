@@ -192,6 +192,8 @@ export function boardView(params: Params): View {
 
   let mirrorIdx = 0;
   let mirrorTotal = list.items.length;
+  let mirrorRevealed = false;
+  let mirrorTitle = list.title;
 
   function renderRemote(): void {
     el.replaceChildren(
@@ -199,6 +201,7 @@ export function boardView(params: Params): View {
         'section',
         { class: 'card' },
         h('h1', {}, '리모컨'),
+        h('p', { class: 'muted small' }, mirrorTitle),
         h('p', { class: 'muted' }, '같은 컴퓨터의 칠판 창을 움직입니다. 칠판 창을 먼저 열어 두세요.'),
         h('p', { class: 'big-count' }, `${mirrorIdx + 1} / ${mirrorTotal}`),
         h('p', { class: 'muted' }, list!.items[mirrorIdx]?.text ?? ''),
@@ -207,7 +210,7 @@ export function boardView(params: Params): View {
           { class: 'row' },
           button('◀ 앞', () => post({ cmd: 'prev' }), 'btn big ghost'),
           button('🔊 읽기', () => post({ cmd: 'play' }), 'btn big'),
-          button('정답', () => post({ cmd: 'reveal' }), 'btn big ghost'),
+            button(mirrorRevealed ? '정답 감추기' : '정답', () => post({ cmd: 'reveal' }), 'btn big ghost'),
           button('뒤 ▶', () => post({ cmd: 'next' }), 'btn big ghost'),
         ),
         button('칠판 창 열기', () => window.open(`${location.pathname}#/board/${list!.id}`, '_blank'), 'btn ghost'),
@@ -223,6 +226,8 @@ export function boardView(params: Params): View {
       if (msg.cmd === 'state') {
         mirrorIdx = msg.idx;
         mirrorTotal = msg.total;
+        mirrorRevealed = msg.revealed;
+        mirrorTitle = msg.title;
         renderRemote();
       }
       return;

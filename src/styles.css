@@ -443,3 +443,13 @@ p:last-child { margin-bottom: 0; }
   .btn.listen { min-height: 64px; font-size: 1.15rem; }
   .item-row { grid-template-columns: 26px 1fr; }
 }
+
+/* 한 획도 그리지 않고 낸 손글씨 답 — 채점 자리는 남겨 둔다 */
+.ink-empty {
+  display: grid;
+  place-items: center;
+  min-height: 72px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+}

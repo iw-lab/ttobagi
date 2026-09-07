@@ -20,17 +20,24 @@ export function openView(params: Params): View {
     placeholder: '받은 링크나 공유 코드를 붙여넣으세요.',
   }) as HTMLTextAreaElement;
 
+  // 코드를 연달아 열면 먼저 시작한 decode 가 늦게 끝나 최신 미리보기를 덮어쓸 수 있다.
+  let generation = 0;
+
   async function show(code: string): Promise<void> {
+    const mine = ++generation;
     result.replaceChildren(h('p', { class: 'muted' }, '여는 중…'));
     let payload: Payload;
     try {
       payload = await decode(extractCode(code));
     } catch (err) {
+      if (mine !== generation) return;
       result.replaceChildren(
         h('p', { class: 'notice' }, err instanceof Error ? err.message : '코드를 열 수 없어요.'),
       );
       return;
     }
+
+    if (mine !== generation) return;
 
     if (payload.t === 'l') {
       const list = payloadToList(payload);
@@ -61,18 +68,20 @@ export function openView(params: Params): View {
 
     // 결과 코드 — 선생님이 아이 결과를 받아 볼 때
     const correct = payload.a.filter(([, , v]) => v === 1).length;
+    const pending = payload.a.filter(([, , v]) => v === 3).length;
     result.replaceChildren(
       h(
         'div',
         { class: 'preview' },
         h('h2', {}, `${payload.w} · ${correct} / ${payload.a.length}`),
         h('p', { class: 'muted' }, payload.n),
+        pending ? h('p', { class: 'notice' }, `${pending}개는 아직 채점 전이에요(손으로 쓴 답).`) : null,
         h(
           'ol',
           { class: 'preview-list' },
           ...payload.a.map(([q, ans, v]) =>
-            h('li', { class: v === 1 ? 'ok' : 'no' },
-              h('span', { class: 'result-icon' }, v === 1 ? '○' : v === 2 ? '△' : '×'),
+            h('li', { class: v === 1 ? 'ok' : v === 3 ? '' : 'no' },
+              h('span', { class: 'result-icon' }, v === 1 ? '○' : v === 2 ? '△' : v === 3 ? '?' : '×'),
               h('span', {}, q),
               ans ? h('span', { class: 'muted small' }, ` (쓴 것: ${ans})`) : null,
             ),

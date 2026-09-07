@@ -367,7 +367,7 @@
 
 | 항목 | v1.0 예상 | v2.0 실제 |
 |---|---|---|
-| 호스팅 | Vercel Pro $20/월 | GitHub Pages **0** |
+| 호스팅 | Vercel Pro $20/월 | Cloudflare Pages + GitHub Pages 이중화 **0** |
 | DB·인증 | Supabase Pro $25/월 | 없음 **0** |
 | TTS | Google Cloud TTS 종량 | 브라우저 음성 **0** |
 | 손글씨 인식 | MyScript 종량 | 사람이 채점 **0** |
@@ -545,8 +545,8 @@
 | 번들 | JS **87.3KB**(gzip 32.2KB) · CSS 12.4KB(gzip 3.4KB) | `vite build` |
 | 실브라우저 QA | **31/31 통과 · 콘솔 오류 0** | 퍼피티어, 휴대폰 390 / 웨일북 1366 / 칠판 1920 |
 | 첫 화면 (로컬) | 955ms | QA 실측 |
-| 첫 화면 (배포본) | **1811ms** | `QA_BASE=https://iw-lab.github.io/ttobagi/` 실측 |
-| 공유 링크 길이 | **262자** (10문항) | QR 여유 있음 |
+| 첫 화면 (배포본) | **1416ms** (Cloudflare) · 1811ms (GitHub Pages) | `QA_BASE=<주소>` 로 각각 실측 |
+| 공유 링크 길이 | **253자** (10문항, Cloudflare 루트 경로) | QR 여유 있음 |
 | 손글씨 획 | 482px가 실제로 남음 | 캔버스 픽셀 검사 |
 | 칠판 버튼 | 72px | 실측 |
 | 가로 넘침 (휴대폰) | **0px** | 실측 |
@@ -557,7 +557,13 @@
 **통과할 때만** 배포한다(첫 워크플로는 `typecheck` 스크립트 부재로 실패했고, 그 사실이
 배포를 막았다 — 게이트가 실제로 작동한다는 증거다).
 
-**주소** — https://iw-lab.github.io/ttobagi/
+**주소** — 정본 https://ttobagi.pages.dev/ · 예비 https://iw-lab.github.io/ttobagi/
+
+학교 망에서 `github.io` 가 차단되는 사례가 있어 **Cloudflare Pages 를 정본으로 두었다**.
+둘 다 무료·정적이라 이중화 비용이 0이고, 한쪽이 막혀도 수업이 멈추지 않는다.
+다만 브라우저 저장소는 출처별로 분리되므로 급수표는 주소를 따라오지 않는다 —
+**한 교실에서는 한 주소로 통일**해야 한다(링크·QR로는 언제든 옮길 수 있다).
+Cloudflare 쪽은 배포본을 **루트 경로**(`/`)로, GitHub Pages 쪽은 `/ttobagi/` 로 빌드한다.
 
 ### 14-D. 남은 미검증 축
 

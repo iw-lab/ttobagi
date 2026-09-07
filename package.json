@@ -10,7 +10,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --port 4173",
     "test": "vitest run",
-    "qa": "vite build && node scripts/visual-qa.mjs"
+    "qa": "vite build && node scripts/visual-qa.mjs",
+    "deploy": "APP_BASE=/ vite build && wrangler pages deploy dist --project-name ttobagi --branch main --commit-dirty=true"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",

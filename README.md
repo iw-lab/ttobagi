@@ -28,7 +28,12 @@
 
 ## 써 보기
 
-바로 열기 → **https://iw-lab.github.io/ttobagi/**
+바로 열기 → **https://ttobagi.pages.dev/**
+
+학교 망에서 `github.io` 가 막히는 경우가 있어 **Cloudflare Pages 를 정본 주소로** 씁니다.
+GitHub Pages(https://iw-lab.github.io/ttobagi/)는 같은 내용의 예비 주소입니다.
+둘 다 무료이고, 어느 쪽으로 열어도 기능은 같습니다 — 다만 저장한 급수표는 주소(출처)별로
+따로 보관되므로, **한 교실에서는 한 주소로 통일**해 쓰는 편이 낫습니다.
 
 처음 화면에서 `급수표 만들기` → 문항 붙여넣기 → `저장하고 연습`.
 교실에서는 저장 후 `칠판 모드`, 학생에게는 QR을 보여 주면 됩니다.
@@ -47,7 +52,12 @@ npm run qa         # 빌드 후 실제 브라우저(퍼피티어) 31개 점검 +
 `npm run qa` 는 휴대폰(390) · 웨일북(1366) · 전자칠판(1920) 세 화면에서 실제로 눌러 보고
 `qa-report.json` 과 `qa-shots/*.png` 를 남깁니다. 콘솔 에러가 하나라도 나면 실패로 끝납니다.
 
-배포된 주소를 검사하려면 `QA_BASE=https://iw-lab.github.io/ttobagi/ npm run qa`.
+```bash
+npm run deploy     # 루트 경로로 빌드해서 Cloudflare Pages 에 올린다 (wrangler 로그인 필요)
+```
+
+배포된 주소를 검사하려면 `QA_BASE=https://ttobagi.pages.dev/ npm run qa`.
+GitHub Pages 쪽은 main 에 push 하면 워크플로가 알아서 올립니다.
 
 ## 구조
 

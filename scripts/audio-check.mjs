@@ -42,7 +42,8 @@ try {
     };
   });
 
-  await page.goto(BASE, { waitUntil: 'networkidle2' });
+  await page.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await new Promise((r) => setTimeout(r, 1200));
 
   const voices = await page.evaluate(async () => {
     const get = () => speechSynthesis.getVoices();
@@ -138,7 +139,10 @@ try {
       );
     };
   });
-  await page2.goto(BASE, { waitUntil: 'networkidle2' });
+  // 배포본에서는 networkidle2 가 끝나지 않는 경우가 있다(서비스워커·자산 선반입).
+  // 화면만 그려지면 눌러 볼 수 있으므로 domcontentloaded 로 충분하다.
+  await page2.goto(BASE, { waitUntil: 'domcontentloaded' });
+  await new Promise((r) => setTimeout(r, 1200));
   await page2.evaluate(() => (location.hash = '#/curriculum'));
   await new Promise((r) => setTimeout(r, 700));
 

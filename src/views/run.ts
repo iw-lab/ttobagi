@@ -1,5 +1,5 @@
 import { getList, getSettings, getWho, saveAttempt, setSettings } from '../engine/store';
-import { grade, STRICTNESS_LABEL, type Strictness } from '../engine/grade';
+import { grade, STRICTNESS_LABEL, type Strictness, markedAnswer } from '../engine/grade';
 import { initials } from '../engine/hangul';
 import { playItem, stopAudio, unlockAudio, voiceStatus } from '../engine/speech';
 import {
@@ -344,8 +344,8 @@ export function runView(params: Params): View {
           'p',
           { class: 'answer-reveal' },
           '정답: ',
-          ...result.marks.map((m) =>
-            h('span', { class: `mark ${m.status}` }, m.expected),
+          ...markedAnswer(item.text, result.marks).map((m) =>
+            h('span', { class: `mark ${m.status}` }, m.char),
           ),
         ),
         record.text ? h('p', { class: 'muted' }, `내가 쓴 것: ${record.text}`) : h('p', { class: 'muted' }, '쓴 것이 없어요.'),

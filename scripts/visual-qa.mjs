@@ -148,6 +148,23 @@ try {
   const wrongVerdict = await textOf(page, '.verdict');
   const tagCount = (await page.$$('.feedback .tag')).length;
   step('틀리면 오답 유형까지 알려준다', wrongVerdict.length > 0 && tagCount > 0, `${wrongVerdict} / 태그 ${tagCount}개`);
+
+  // 정답을 보여 줄 때 띄어쓰기·문장부호가 사라지면 안 된다.
+  // 낱말 급수표로 검사하면 공백이 없어 통과해 버리므로 «문장» 급수표에서 확인한다.
+  await page.evaluate(() => (location.hash = '#/run/c-g5-2-01?mode=practice'));
+  await sleep(600);
+  await page.type('.answer-input', '아무렇게나 쓴 답');
+  await clickText(page, 'button.btn.big', '확인');
+  await sleep(400);
+  const revealShown = await page.evaluate(() => {
+    const el = document.querySelector('.feedback .answer-reveal');
+    return el ? el.textContent.replace(/^정답:\s*/, '') : '';
+  });
+  step(
+    '정답이 띄어쓰기·문장부호까지 그대로 나온다',
+    revealShown === '출석을 부르자 모두 큰 소리로 대답했다.',
+    revealShown || '(비어 있음)',
+  );
   await shot(page, '05-practice-wrong');
 
   /* ── 5. 끝까지 풀고 결과 ── */

@@ -78,8 +78,14 @@ export type Verdict = 'correct' | 'partial' | 'wrong';
 
 /** 정답 글자 한 칸의 채점 결과 — 화면 하이라이트에 쓴다 */
 export interface Mark {
-  /** 정답 문자열에서의 위치 */
+  /** 채점에 쓰인(정규화된) 문자열에서의 위치 */
   index: number;
+  /**
+   * 다듬지 않은 정답 문장에서의 자리.
+   * 채점은 띄어쓰기·문장부호를 뺀 문자열로 하지만, 화면에 보여 줄 때는 원래 문장 그대로여야 한다.
+   * (이게 없어서 「출석을부르자모두큰소리로대답했다」가 정답이라고 나왔다 — 2026-09-08.)
+   */
+  srcIndex: number;
   expected: string;
   /** 학생이 그 자리에 쓴 글자 (빠뜨렸으면 null) */
   actual: string | null;
@@ -124,6 +130,27 @@ export function stripSpace(text: string): string {
 }
 
 /** 엄격도에 따라 비교 대상 문자열을 만든다 */
+/**
+ * comparable() 과 똑같이 다듬되, 남은 글자가 «원문(정규화본)에서 몇 번째였는지»를 함께 돌려준다.
+ * 채점은 다듬은 글자로 하고, 표시는 원문으로 해야 하므로 그 사이를 잇는 다리가 필요하다.
+ */
+export function comparableMapped(
+  text: string,
+  strictness: Strictness,
+): { base: string; text: string; map: number[] } {
+  const base = normalizeBase(text);
+  const chars = [...base];
+  const keep: string[] = [];
+  const map: number[] = [];
+  chars.forEach((ch, i) => {
+    if (strictness !== 'full' && PUNCT_ONE.test(ch)) return;
+    if (strictness === 'char' && /\s/.test(ch)) return;
+    keep.push(ch);
+    map.push(i);
+  });
+  return { base, text: keep.join(''), map };
+}
+
 export function comparable(text: string, strictness: Strictness): string {
   const base = normalizeBase(text);
   switch (strictness) {
@@ -361,7 +388,8 @@ export function grade(expectedRaw: string, actualRaw: string, opts: GradeOptions
   const spacingDiff = hasSpacingDiff(expectedBase, actualBase);
   const punctDiff = hasPunctDiff(expectedBase, actualBase);
 
-  const e = comparable(expectedRaw, strictness);
+  const mapped = comparableMapped(expectedRaw, strictness);
+  const e = mapped.text;
   const a = comparable(actualRaw, strictness);
 
   const eChars = [...e];
@@ -377,18 +405,18 @@ export function grade(expectedRaw: string, actualRaw: string, opts: GradeOptions
   for (const op of ops) {
     if (op.type === 'match') {
       pairs.set(op.ei, op.ai);
-      marks.push({ index: op.ei, expected: eChars[op.ei], actual: aChars[op.ai], status: 'ok' });
+      marks.push({ index: op.ei, srcIndex: mapped.map[op.ei], expected: eChars[op.ei], actual: aChars[op.ai], status: 'ok' });
     } else if (op.type === 'sub') {
       pairs.set(op.ei, op.ai);
       wrongCount++;
-      marks.push({ index: op.ei, expected: eChars[op.ei], actual: aChars[op.ai], status: 'wrong' });
+      marks.push({ index: op.ei, srcIndex: mapped.map[op.ei], expected: eChars[op.ei], actual: aChars[op.ai], status: 'wrong' });
       const de = decompose(eChars[op.ei]);
       const da = decompose(aChars[op.ai]);
       if (de && da) tagPair(de, da, tags, decompose(eChars[op.ei + 1] ?? ''));
       else tags.add('기타');
     } else if (op.type === 'del') {
       wrongCount++;
-      marks.push({ index: op.ei, expected: eChars[op.ei], actual: null, status: 'missing' });
+      marks.push({ index: op.ei, srcIndex: mapped.map[op.ei], expected: eChars[op.ei], actual: null, status: 'missing' });
       if (eChars[op.ei].trim() === '') tags.add('띄어쓰기');
       else tags.add('글자빠짐');
     } else {
@@ -462,4 +490,25 @@ export function tagStats(results: GradeResult[]): { tag: ErrorTag; count: number
   return [...counts.entries()]
     .map(([tag, count]) => ({ tag, count }))
     .sort((x, y) => y.count - x.count);
+}
+
+/**
+ * 정답 문장을 «있는 그대로» 돌려준다 — 띄어쓰기와 문장부호를 포함해서.
+ * 채점 대상이 아니었던 글자(현재 엄격도에서 무시하는 공백·문장부호)는 'ok' 로 둔다.
+ *
+ * 이 함수가 없던 동안 결과 화면은 다듬어진 문자열을 그대로 이어 붙여
+ * 「출석을부르자모두큰소리로대답했다」를 정답이라고 보여 주었다.
+ */
+export function markedAnswer(
+  expectedRaw: string,
+  marks: Mark[],
+): { char: string; status: Mark['status'] }[] {
+  const base = normalizeBase(expectedRaw);
+  const chars = [...base];
+  const status = new Map<number, Mark['status']>();
+  for (const m of marks) {
+    if (m.srcIndex === undefined) continue;
+    status.set(m.srcIndex, m.status);
+  }
+  return chars.map((char, i) => ({ char, status: status.get(i) ?? 'ok' }));
 }

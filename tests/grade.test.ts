@@ -8,6 +8,7 @@ import {
   isCorrect,
   countCorrect,
   jamoDistance,
+  markedAnswer,
   tagStats,
 } from '../src/engine/grade';
 
@@ -267,5 +268,43 @@ describe('교차검증 회귀', () => {
     const results = [grade('학교', '학교'), grade('학교', '학꾜')];
     expect(countCorrect(results)).toBe(1);
     expect(tagStats(results).length).toBeGreaterThan(0);
+  });
+});
+
+describe('정답 표시', () => {
+  it('정답은 띄어쓰기와 문장부호를 그대로 달고 나온다', () => {
+    // 「출석을부르자모두큰소리로대답했다」가 정답이라고 나온 적이 있다 — 2026-09-08
+    const expected = '출석을 부르자 모두 큰 소리로 대답했다.';
+    const r = grade(expected, '출석을 부르자 모두 큰소리로 대답했다.');
+    const shown = markedAnswer(expected, r.marks)
+      .map((m) => m.char)
+      .join('');
+    expect(shown).toBe(expected);
+  });
+
+  it('엄격도를 낮춰도 표시는 원문 그대로다', () => {
+    for (const strictness of ['char', 'space', 'full'] as const) {
+      const expected = '나는 학교에 갑니다.';
+      const r = grade(expected, '나는 학꾜에 갑니다.', { strictness });
+      const shown = markedAnswer(expected, r.marks)
+        .map((m) => m.char)
+        .join('');
+      expect(shown, strictness).toBe(expected);
+    }
+  });
+
+  it('틀린 글자에만 표시가 붙고 공백·부호에는 붙지 않는다', () => {
+    const expected = '나는 학교에 갑니다.';
+    const r = grade(expected, '나는 학꾜에 갑니다.');
+    const marked = markedAnswer(expected, r.marks);
+    const wrong = marked.filter((m) => m.status === 'wrong').map((m) => m.char);
+    expect(wrong).toEqual(['교']);
+    expect(marked.filter((m) => m.char === ' ').every((m) => m.status === 'ok')).toBe(true);
+    expect(marked.find((m) => m.char === '.')!.status).toBe('ok');
+  });
+
+  it('공백만 다른 답은 기본 채점(글자만)에서 정답이다', () => {
+    const r = grade('출석을 부르자 모두 큰 소리로 대답했다.', '출석을 부르자 모두 큰소리로 대답했다.');
+    expect(isCorrect(r.verdict)).toBe(true);
   });
 });

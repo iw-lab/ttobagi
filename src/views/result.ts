@@ -1,5 +1,5 @@
 import { getAttempt, getList, saveAttempt } from '../engine/store';
-import { grade, isCorrect, tagStats, TAG_HELP } from '../engine/grade';
+import { grade, isCorrect, markedAnswer, tagStats, TAG_HELP } from '../engine/grade';
 import { RUN_MODE_LABEL, type Attempt } from '../engine/types';
 import { copyText, encodeResult, qrSvg, shareUrl } from '../engine/share';
 import { add, button, formatDate, h, navigate, toast } from '../ui/dom';
@@ -30,8 +30,12 @@ export function resultView(params: Params): View {
     const unconfirmed = attempt!.answers.filter((a) => !a.confirmed).length;
     const wrongIds = attempt!.answers.filter((a) => !isCorrect(a.verdict) && a.confirmed).map((a) => a.itemId);
 
+    // 예전 기록에는 «그때의 정답»이 없다. 그런 기록을 지금 급수표로 다시 채점해 보여 주면
+    // 저장된 ○×와 화면의 표시가 어긋난다(실제로 그래서 맞게 쓴 답에 ×가 붙어 보였다).
+    const legacy = attempt!.answers.some((a) => a.expected === undefined);
+
     const results = attempt!.answers
-      .filter((a) => a.confirmed && a.text)
+      .filter((a) => a.confirmed && a.text && a.expected !== undefined)
       .map((a) => grade(answerOf(a), a.text, { strictness: attempt!.settings.strictness }));
     const stats = tagStats(results);
 
@@ -43,6 +47,13 @@ export function resultView(params: Params): View {
         h('p', { class: 'muted' }, `${attempt!.listTitle} · ${RUN_MODE_LABEL[attempt!.mode]} · ${attempt!.who} · ${formatDate(attempt!.finishedAt)}`),
         unconfirmed
           ? h('p', { class: 'notice' }, `손으로 쓴 답 ${unconfirmed}개는 아직 채점 전이에요. 아래에서 하나씩 봐 주세요.`)
+          : null,
+        legacy
+          ? h(
+              'p',
+              { class: 'notice' },
+              '이 기록은 급수표가 바뀌기 전에 본 것이라 정답이 지금과 다를 수 있어요. 다시 한 번 풀어 보면 정확한 결과가 나옵니다.',
+            )
           : null,
       ),
     );
@@ -103,7 +114,11 @@ export function resultView(params: Params): View {
           { class: 'result-list' },
           ...attempt!.answers.map((a) => {
             const expected = answerOf(a);
-            const r = a.text ? grade(expected, a.text, { strictness: attempt!.settings.strictness }) : null;
+            // 옛 기록은 다시 채점하지 않는다 — 저장된 판정과 어긋나는 표시를 만들지 않으려고
+            const r =
+              a.text && a.expected !== undefined
+                ? grade(expected, a.text, { strictness: attempt!.settings.strictness })
+                : null;
             return h(
               'li',
               { class: `result-row ${isCorrect(a.verdict) ? 'ok' : 'no'}` },
@@ -112,7 +127,14 @@ export function resultView(params: Params): View {
                 'div',
                 { class: 'result-body' },
                 r
-                  ? h('p', { class: 'answer-reveal' }, ...r.marks.map((m) => h('span', { class: `mark ${m.status}` }, m.expected)))
+                  ? h(
+                      'p',
+                      { class: 'answer-reveal' },
+                      // 정답은 띄어쓰기·문장부호까지 원문 그대로 보여 준다
+                      ...markedAnswer(expected, r.marks).map((m) =>
+                        h('span', { class: `mark ${m.status}` }, m.char),
+                      ),
+                    )
                   : h('p', { class: 'answer-reveal' }, h('strong', {}, expected)),
                 a.text ? h('p', { class: 'muted small' }, `쓴 것: ${a.text}`) : a.ink ? h('img', { class: 'ink-mini', src: a.ink, alt: '쓴 글씨' }) : null,
                 a.tags.length ? h('p', { class: 'tags' }, ...a.tags.map((t) => h('span', { class: 'tag' }, t))) : null,

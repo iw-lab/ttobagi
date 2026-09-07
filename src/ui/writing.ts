@@ -1,0 +1,196 @@
+/**
+ * 손글씨 칸 — 국어 공책처럼 네모 칸에 쓴다.
+ *
+ * 손가락·펜·마우스를 **한 파이프라인**으로 받는다. 학교 전자칠판(적외선 방식)은 펜을 손가락으로
+ * 보고하는 경우가 있어서 «펜일 때만 그린다»고 못 박으면 그 교실에서 통째로 먹통이 된다.
+ * 그래서 펜 입력이 실제로 관측된 기기에서만 손바닥 무시를 켠다.
+ */
+
+export interface WritingPadOptions {
+  /** 칸 개수 — 문항 글자 수에 맞춘다 */
+  cells: number;
+  height?: number;
+  onChange?: () => void;
+}
+
+interface Stroke {
+  points: { x: number; y: number }[];
+  width: number;
+}
+
+export class WritingPad {
+  readonly root: HTMLElement;
+  private canvas: HTMLCanvasElement;
+  private ctx: CanvasRenderingContext2D;
+  private strokes: Stroke[] = [];
+  private current: Stroke | null = null;
+  private penSeen = false;
+  private cells: number;
+  private cssWidth = 0;
+  private cssHeight = 0;
+  private onChange?: () => void;
+  private ro?: ResizeObserver;
+
+  constructor(opts: WritingPadOptions) {
+    this.cells = Math.max(1, Math.min(24, opts.cells));
+    this.onChange = opts.onChange;
+    this.canvas = document.createElement('canvas');
+    this.canvas.className = 'pad-canvas';
+    this.canvas.style.touchAction = 'none';
+    const ctx = this.canvas.getContext('2d');
+    if (!ctx) throw new Error('이 브라우저에서는 손글씨 칸을 쓸 수 없어요.');
+    this.ctx = ctx;
+
+    this.root = document.createElement('div');
+    this.root.className = 'pad';
+    this.root.style.setProperty('--pad-height', `${opts.height ?? 150}px`);
+    this.root.appendChild(this.canvas);
+
+    this.bind();
+    queueMicrotask(() => this.resize());
+    if (typeof ResizeObserver !== 'undefined') {
+      this.ro = new ResizeObserver(() => this.resize());
+      this.ro.observe(this.root);
+    }
+  }
+
+  /** 펜이 관측된 기기에서만 손바닥(손가락) 입력을 무시한다 */
+  private shouldIgnore(e: PointerEvent): boolean {
+    if (e.pointerType === 'pen') return false;
+    return this.penSeen && e.pointerType === 'touch';
+  }
+
+  private bind(): void {
+    const pos = (e: PointerEvent) => {
+      const r = this.canvas.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+
+    this.canvas.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'pen') this.penSeen = true;
+      if (this.shouldIgnore(e)) return;
+      this.canvas.setPointerCapture(e.pointerId);
+      const width = e.pointerType === 'pen' ? 2 + (e.pressure || 0.5) * 4 : 4;
+      this.current = { points: [pos(e)], width };
+      this.strokes.push(this.current);
+      this.draw();
+      e.preventDefault();
+    });
+
+    this.canvas.addEventListener('pointermove', (e) => {
+      if (!this.current || this.shouldIgnore(e)) return;
+      this.current.points.push(pos(e));
+      this.draw();
+      e.preventDefault();
+    });
+
+    const end = () => {
+      if (!this.current) return;
+      this.current = null;
+      this.onChange?.();
+    };
+    this.canvas.addEventListener('pointerup', end);
+    this.canvas.addEventListener('pointercancel', end);
+    this.canvas.addEventListener('pointerleave', end);
+  }
+
+  private resize(): void {
+    const rect = this.root.getBoundingClientRect();
+    if (!rect.width) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    this.cssWidth = rect.width;
+    this.cssHeight = rect.height;
+    this.canvas.width = Math.round(rect.width * dpr);
+    this.canvas.height = Math.round(rect.height * dpr);
+    this.canvas.style.width = `${rect.width}px`;
+    this.canvas.style.height = `${rect.height}px`;
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.draw();
+  }
+
+  private drawGrid(): void {
+    const { ctx, cssWidth: w, cssHeight: hgt, cells } = this;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(90,120,170,.35)';
+    ctx.lineWidth = 1;
+    const cellW = w / cells;
+    for (let i = 1; i < cells; i++) {
+      ctx.beginPath();
+      ctx.moveTo(Math.round(i * cellW) + 0.5, 0);
+      ctx.lineTo(Math.round(i * cellW) + 0.5, hgt);
+      ctx.stroke();
+    }
+    // 가운데 안내선 — 글자 높이를 잡아 준다
+    ctx.strokeStyle = 'rgba(90,120,170,.18)';
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(0, hgt / 2);
+    ctx.lineTo(w, hgt / 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  private draw(): void {
+    const { ctx, cssWidth: w, cssHeight: hgt } = this;
+    ctx.clearRect(0, 0, w, hgt);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, w, hgt);
+    this.drawGrid();
+    ctx.save();
+    ctx.strokeStyle = '#12243d';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (const s of this.strokes) {
+      if (s.points.length === 0) continue;
+      ctx.lineWidth = s.width;
+      ctx.beginPath();
+      ctx.moveTo(s.points[0].x, s.points[0].y);
+      for (const p of s.points.slice(1)) ctx.lineTo(p.x, p.y);
+      if (s.points.length === 1) ctx.lineTo(s.points[0].x + 0.1, s.points[0].y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  undo(): void {
+    this.strokes.pop();
+    this.draw();
+    this.onChange?.();
+  }
+
+  clearInk(): void {
+    this.strokes = [];
+    this.draw();
+    this.onChange?.();
+  }
+
+  get isEmpty(): boolean {
+    return this.strokes.length === 0;
+  }
+
+  /** 교사 채점 화면에 띄울 작은 이미지 */
+  toThumbnail(maxWidth = 480): string {
+    if (this.isEmpty) return '';
+    const scale = Math.min(1, maxWidth / Math.max(1, this.cssWidth));
+    const off = document.createElement('canvas');
+    off.width = Math.max(1, Math.round(this.cssWidth * scale));
+    off.height = Math.max(1, Math.round(this.cssHeight * scale));
+    const c = off.getContext('2d');
+    if (!c) return '';
+    c.drawImage(this.canvas, 0, 0, off.width, off.height);
+    try {
+      return off.toDataURL('image/png');
+    } catch {
+      return '';
+    }
+  }
+
+  setCells(cells: number): void {
+    this.cells = Math.max(1, Math.min(24, cells));
+    this.draw();
+  }
+
+  destroy(): void {
+    this.ro?.disconnect();
+  }
+}

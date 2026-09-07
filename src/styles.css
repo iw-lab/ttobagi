@@ -484,3 +484,10 @@ p:last-child { margin-bottom: 0; }
   font: inherit; font-size: 0.95rem;
 }
 .switch-btn.on { background: var(--brand); border-color: transparent; color: #fff; font-weight: 700; }
+
+/* 체크박스는 상자만 크게 해도 소용없다 — 누르는 곳은 라벨 전체다 */
+.field-inline {
+  display: flex; align-items: center; gap: 10px;
+  min-height: 44px; cursor: pointer;
+}
+.field-inline input[type='checkbox'] { width: 22px; height: 22px; }

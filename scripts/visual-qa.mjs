@@ -297,18 +297,69 @@ try {
     await page.setOfflineMode(false);
   }
 
-  /* ── 14. 접근성 기본 ── */
-  console.log('\n[14] 접근성');
+  /* ── 14. 낡은 내장 급수표 사본 ── */
+  console.log('\n[14] 낡은 사본');
+  await page.evaluate(() => {
+    // 예전 판이 저장해 둔 «출석» 낱말 사본을 일부러 심는다.
+    // 이 사본 때문에 «새 문장을 들려주고 옛 낱말로 채점»하는 사고가 났었다.
+    const raw = JSON.parse(localStorage.getItem('ttobagi.v1') || '{}');
+    raw.lists = [
+      ...(raw.lists ?? []),
+      {
+        id: 'c-g5-2-01',
+        title: '한자어 표기',
+        level: '5학년 2학기 · 1급',
+        items: [{ id: 'g5-2-01-01', text: '출석' }],
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    ];
+    localStorage.setItem('ttobagi.v1', JSON.stringify(raw));
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await sleep(800);
+  const staleGone = await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem('ttobagi.v1') || '{}');
+    return !(raw.lists ?? []).some((l) => l.id.startsWith('c-'));
+  });
+  step('낡은 내장 급수표 사본이 사라진다', staleGone);
+
+  await page.evaluate(() => (location.hash = '#/run/c-g5-2-01?mode=practice'));
+  await sleep(700);
+  await clickText(page, 'button.btn.ghost', ['보여주기', '힌트']);
+  const answerNow = await page.evaluate(() => {
+    // 연습 모드에서 아무 답이나 내면 정답이 드러난다
+    const input = document.querySelector('.answer-input');
+    if (input) input.value = 'ㅁㅁ';
+    const btn = [...document.querySelectorAll('button')].find((b) => b.textContent.includes('확인') || b.textContent.includes('다 했어요'));
+    btn?.click();
+    return true;
+  });
+  await sleep(500);
+  const revealed = await page.evaluate(() => document.body.innerText);
+  step(
+    '내장 급수표가 지금의 문장으로 채점된다',
+    answerNow && revealed.includes('출석을 부르자') && !/정답:\s*출석\s*$/m.test(revealed),
+    revealed.includes('출석을 부르자') ? '문장으로 채점' : '낱말로 채점되고 있다',
+  );
+
+  /* ── 15. 접근성 기본 ── */
+  console.log('\n[15] 접근성');
   await page.reload({ waitUntil: 'networkidle0' });
   await sleep(400);
-  const smallTargets = await page.evaluate(() => {
+  const small = await page.evaluate(() => {
     const els = [...document.querySelectorAll('button, a.btn, input, select')];
-    return els.filter((el) => {
-      const r = el.getBoundingClientRect();
-      return r.width > 0 && r.height > 0 && r.height < 40;
-    }).length;
+    return els
+      .filter((el) => {
+        // 체크박스는 상자가 아니라 «상자를 감싼 라벨»이 실제로 누르는 곳이다
+        const target =
+          (el.type === 'checkbox' || el.type === 'radio') && el.closest('label') ? el.closest('label') : el;
+        const r = target.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && r.height < 40;
+      })
+      .map((el) => `${el.className || el.tagName}:${Math.round(el.getBoundingClientRect().height)}px`);
   });
-  step('작은 터치 목표가 없다', smallTargets === 0, `${smallTargets}개`);
+  step('작은 터치 목표가 없다', small.length === 0, small.join(', ') || '0개');
   const langOk = await page.evaluate(() => document.documentElement.lang === 'ko');
   step('문서 언어가 한국어', langOk);
 } catch (err) {

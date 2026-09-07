@@ -128,6 +128,8 @@ export function runView(params: Params): View {
       const ink = pad?.toThumbnail() ?? '';
       return {
         itemId: item.id,
+        // 그때의 정답을 함께 남긴다 — 급수표가 나중에 바뀌어도 이 기록은 흔들리지 않는다
+        expected: item.text,
         text: '',
         ink: ink || undefined,
         // 손글씨는 사람이 보기 전까지 «판정 보류» — 자동으로 맞다고 하지 않는다
@@ -142,6 +144,7 @@ export function runView(params: Params): View {
     const result = grade(item.text, text, { strictness: settings.strictness });
     return {
       itemId: item.id,
+      expected: item.text,
       text,
       verdict: result.verdict,
       tags: result.tags,

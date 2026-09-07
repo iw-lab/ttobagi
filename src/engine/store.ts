@@ -28,13 +28,20 @@ export function load(): AppState {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<AppState>;
+      const kept = (parsed.lists ?? []).filter((l) => !l.id.startsWith('c-'));
+      const strippedStale = kept.length !== (parsed.lists ?? []).length;
       cache = {
-        lists: parsed.lists ?? [],
+        // 예전 판에서 저장해 둔 내장 급수표 사본은 버린다.
+        // 앱의 문항이 바뀌어도 사본은 그대로라 «새 문장을 듣고 옛 정답으로 채점»되었다.
+        // 이제 내장 급수표는 저장하지 않고 앱이 직접 답하므로, 남아 있는 사본은 해롭기만 하다.
+        lists: kept,
         attempts: parsed.attempts ?? [],
         settings: { ...DEFAULT_SETTINGS, ...(parsed.settings ?? {}) },
         who: parsed.who ?? '',
-        lastListId: parsed.lastListId,
+        lastListId: parsed.lastListId?.startsWith('c-') ? undefined : parsed.lastListId,
       };
+      // 걸러 낸 사실을 디스크에도 남긴다 — 메모리에서만 지우면 다음에 또 읽힌다
+      if (strippedStale) save();
       return cache;
     }
   } catch {
@@ -88,8 +95,27 @@ export function getLists(): WordList[] {
   return [...load().lists].sort((a, b) => b.updatedAt - a.updatedAt);
 }
 
+/**
+ * 급수표 하나를 찾는다.
+ *
+ * 🔴 내장 급수표(`c-`로 시작하는 id)는 **저장소에 두지 않고 늘 새로 만든다.**
+ * 예전에는 한 번 담아 두고 다시 갱신하지 않았는데, 앱의 문항을 고치자 음원은 새것이고
+ * 정답은 헌것이 되어 「듣고 그대로 썼는데 오답」이 되었다. 사본을 두지 않으면 낡을 일도 없다.
+ */
 export function getList(id: string): WordList | undefined {
+  if (id.startsWith('c-')) return builtinList(id);
   return load().lists.find((l) => l.id === id);
+}
+
+/** 내장 급수표를 만들어 주는 함수. 순환 참조를 피하려고 바깥에서 끼워 넣는다. */
+let builtinResolver: (id: string) => WordList | undefined = () => undefined;
+
+export function setBuiltinResolver(fn: (id: string) => WordList | undefined): void {
+  builtinResolver = fn;
+}
+
+function builtinList(id: string): WordList | undefined {
+  return builtinResolver(id);
 }
 
 export function upsertList(list: WordList): void {

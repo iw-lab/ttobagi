@@ -13,6 +13,12 @@ export function resultView(params: Params): View {
     };
   }
   const list = getList(attempt.listId);
+  /**
+   * 정답 글자는 «응시 당시 기록»을 먼저 본다.
+   * 급수표는 나중에 고쳐질 수 있고, 실제로 그래서 지난 결과가 엉뚱하게 다시 채점된 적이 있다.
+   */
+  const answerOf = (a: { itemId: string; expected?: string }) =>
+    a.expected ?? list?.items.find((i) => i.id === a.itemId)?.text ?? '(지워진 문항)';
   const itemText = (id: string) => list?.items.find((i) => i.id === id)?.text ?? '(지워진 문항)';
 
   const el = h('div', { class: 'view' });
@@ -26,7 +32,7 @@ export function resultView(params: Params): View {
 
     const results = attempt!.answers
       .filter((a) => a.confirmed && a.text)
-      .map((a) => grade(itemText(a.itemId), a.text, { strictness: attempt!.settings.strictness }));
+      .map((a) => grade(answerOf(a), a.text, { strictness: attempt!.settings.strictness }));
     const stats = tagStats(results);
 
     el.append(
@@ -59,7 +65,7 @@ export function resultView(params: Params): View {
               h(
                 'div',
                 { class: `ink-cell ${a.confirmed ? (isCorrect(a.verdict) ? 'ok' : 'no') : ''}` },
-                h('div', { class: 'ink-answer' }, itemText(a.itemId)),
+                h('div', { class: 'ink-answer' }, answerOf(a)),
                 a.ink
                   ? h('img', { class: 'ink-img', src: a.ink, alt: '학생이 쓴 글씨' })
                   : h('div', { class: 'ink-empty muted small' }, '빈 답'),
@@ -96,7 +102,7 @@ export function resultView(params: Params): View {
           'ol',
           { class: 'result-list' },
           ...attempt!.answers.map((a) => {
-            const expected = itemText(a.itemId);
+            const expected = answerOf(a);
             const r = a.text ? grade(expected, a.text, { strictness: attempt!.settings.strictness }) : null;
             return h(
               'li',
@@ -148,7 +154,10 @@ export function resultView(params: Params): View {
 
     const shareBox = h('div', { class: 'share-box' });
     void (async () => {
-      const code = await encodeResult(attempt!, itemText);
+      const code = await encodeResult(attempt!, (id) => {
+        const found = attempt!.answers.find((x) => x.itemId === id);
+        return found ? answerOf(found) : itemText(id);
+      });
       const url = shareUrl(code);
       const svg = url.length <= 1800 ? qrSvg(url, 3) : null;
       add(

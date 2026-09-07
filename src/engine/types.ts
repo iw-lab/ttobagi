@@ -74,6 +74,12 @@ export const DEFAULT_SETTINGS: RunSettings = {
 /** 한 문항에 대한 학생의 답 */
 export interface AnswerRecord {
   itemId: string;
+  /**
+   * 응시 «그 순간»의 정답. 급수표가 나중에 바뀌어도 지난 결과가 흔들리지 않게 함께 남긴다.
+   * (실제로 내장 급수표의 문항을 낱말에서 문장으로 바꾸었더니, 지난 기록이 새 문항으로
+   *  다시 채점되어 아이가 맞게 쓴 답이 오답으로 뒤집혔다 — 2026-09-07.)
+   */
+  expected?: string;
   /** 자판·블록 입력이면 글자, 손글씨면 '' */
   text: string;
   /** 손글씨 썸네일 (dataURL). 손글씨 답안일 때만 */

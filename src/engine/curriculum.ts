@@ -1190,3 +1190,10 @@ export function bySemester(): { grade: number; semester: number; sheets: LevelSh
   }
   return out;
 }
+
+/** `c-g5-2-01` 같은 id 로 내장 급수표를 찾는다 (저장소를 거치지 않는다) */
+export function builtinList(id: string): ReturnType<typeof toWordList> | undefined {
+  if (!id.startsWith('c-')) return undefined;
+  const sheet = CURRICULUM.find((c) => c.id === id.slice(2));
+  return sheet ? toWordList(sheet) : undefined;
+}

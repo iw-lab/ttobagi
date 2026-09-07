@@ -6,16 +6,31 @@
  */
 
 import { bySemester, toWordList, type LevelSheet } from '../engine/curriculum';
-import { getLists, upsertList } from '../engine/store';
+import { upsertList } from '../engine/store';
+import { newId } from '../engine/types';
 import { button, h, navigate, toast } from '../ui/dom';
 import type { Params, View } from './view';
 
-/** 내장 급수표를 저장소에 올려 두고(있으면 그대로) id 를 돌려준다 */
-function ensureSaved(sheet: LevelSheet): string {
-  const list = toWordList(sheet);
-  const existing = getLists().find((l) => l.id === list.id);
-  if (!existing) upsertList(list);
-  return list.id;
+/**
+ * 내장 급수표는 «저장하지 않고» 그대로 쓴다. id 만 넘기면 앱이 그때그때 만들어 준다.
+ *
+ * 🔴 예전에는 여기서 저장소에 한 벌 복사해 두었다. 그런데 앱의 문항을 고쳐도 그 사본은
+ * 옛 내용 그대로 남았고, 음원 경로는 같아서 «새 문장을 들려주고 옛 낱말로 채점»하는
+ * 사고가 났다(2026-09-07). 사본을 만들지 않으면 낡을 것도 없다.
+ */
+function useId(sheet: LevelSheet): string {
+  return `c-${sheet.id}`;
+}
+
+/** 담기 = 고쳐 쓸 수 있는 «내 급수표»로 복사한다. 새 id 라 내장본과 섞이지 않는다. */
+function copyToMine(sheet: LevelSheet): void {
+  const base = toWordList(sheet);
+  upsertList({
+    ...base,
+    id: newId('l'),
+    title: `${base.title} (내 사본)`,
+    items: base.items.map((i) => ({ ...i, id: newId('i') })),
+  });
 }
 
 export function curriculumView(params: Params): View {
@@ -71,13 +86,13 @@ export function curriculumView(params: Params): View {
                     h(
                       'div',
                       { class: 'level-actions' },
-                      button('연습', () => navigate(`#/run/${ensureSaved(sheet)}?mode=practice`), 'btn small'),
-                      button('시험', () => navigate(`#/run/${ensureSaved(sheet)}?mode=exam`), 'btn small ghost'),
-                      button('칠판', () => navigate(`#/board/${ensureSaved(sheet)}`), 'btn small ghost'),
-                      button('인쇄', () => navigate(`#/print/${ensureSaved(sheet)}`), 'btn small ghost'),
+                      button('연습', () => navigate(`#/run/${useId(sheet)}?mode=practice`), 'btn small'),
+                      button('시험', () => navigate(`#/run/${useId(sheet)}?mode=exam`), 'btn small ghost'),
+                      button('칠판', () => navigate(`#/board/${useId(sheet)}`), 'btn small ghost'),
+                      button('인쇄', () => navigate(`#/print/${useId(sheet)}`), 'btn small ghost'),
                       button('담기', () => {
-                        ensureSaved(sheet);
-                        toast('내 급수표에 담았어요. 고쳐서 쓸 수 있어요.');
+                        copyToMine(sheet);
+                        toast('내 급수표로 복사했어요. 마음대로 고쳐 쓰세요.');
                         navigate('#/lists');
                       }, 'btn small ghost'),
                     ),

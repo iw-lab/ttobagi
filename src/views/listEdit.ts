@@ -35,8 +35,19 @@ export function listEditView(params: Params): View {
     };
   }
 
+  // 내장 급수표(c-)는 저장소에 없다. 고치려 들면 «내 사본»으로 갈아 준다 —
+  // 그대로 저장하면 다음 실행 때 정리 과정이 지워 버려 교사의 수정이 조용히 사라진다.
+  const isBuiltin = !isNew && params.id.startsWith('c-');
+
   const draft: WordList = existing
-    ? { ...existing, items: existing.items.map((i) => ({ ...i })) }
+    ? isBuiltin
+      ? {
+          ...existing,
+          id: newId('l'),
+          title: `${existing.title} (내 사본)`,
+          items: existing.items.map((i) => ({ ...i, id: newId('i') })),
+        }
+      : { ...existing, items: existing.items.map((i) => ({ ...i })) }
     : {
         id: newId('l'),
         title: '',
@@ -216,7 +227,10 @@ export function listEditView(params: Params): View {
     h(
       'section',
       { class: 'card' },
-      h('h1', {}, isNew ? '새 급수표' : '급수표 고치기'),
+      h('h1', {}, isNew ? '새 급수표' : isBuiltin ? '급수표 복사해서 고치기' : '급수표 고치기'),
+      isBuiltin
+        ? h('p', { class: 'notice small' }, '앱에 들어 있는 급수표는 그대로 두고, 고칠 수 있는 사본을 만듭니다. 저장하면 「내가 만든 급수표」에 담깁니다.')
+        : null,
       field('제목', titleInput),
       field('급수', levelInput, '학교에서 쓰는 표기를 그대로 적으세요.'),
       field('문항 붙여넣기', bulk, '한 줄에 한 문항. 앞의 번호(1. 2. …)는 알아서 지웁니다.'),
@@ -236,7 +250,7 @@ export function listEditView(params: Params): View {
       h('h2', {}, '나눠 주기'),
       shareBox,
     ),
-    existing
+    existing && !isBuiltin
       ? h(
           'section',
           { class: 'card' },

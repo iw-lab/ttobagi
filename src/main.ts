@@ -1,6 +1,8 @@
 import './styles.css';
 import { getSettings } from './engine/store';
 import { preloadRecordingIndex, stopAudio } from './engine/speech';
+import { builtinList } from './engine/curriculum';
+import { setBuiltinResolver } from './engine/store';
 import { h, clear } from './ui/dom';
 import { boardView } from './views/board';
 import { curriculumView } from './views/curriculum';
@@ -92,6 +94,10 @@ function render(): void {
 function applyPreferences(): void {
   document.body.classList.toggle('easy-font', getSettings().easyFont);
 }
+
+// 내장 급수표는 저장소가 아니라 앱 자신이 답한다 — 사본이 낡는 길을 막는다.
+// 첫 화면을 그리기 전에 끼워 넣어야 한다.
+setBuiltinResolver(builtinList);
 
 window.addEventListener('hashchange', render);
 applyPreferences();

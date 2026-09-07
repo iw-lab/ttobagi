@@ -164,6 +164,46 @@ export function runView(params: Params): View {
 
   /* ───────── 화면 ───────── */
 
+  /**
+   * 입력 방법 고르기 — 화면 안에 둔다.
+   *
+   * 설정 서랍(«읽기·채점 설정») 안에 넣어 두었더니 「지금 뭘로 답하는 거냐」는 물음이 나왔다.
+   * 답을 쓰는 방법은 받아쓰기에서 가장 먼저 정해야 하는 것이라 숨기면 안 된다.
+   */
+  function inputSwitch(): HTMLElement {
+    const modes: { key: RunSettings['inputMode']; label: string; hint: string }[] = [
+      { key: 'keyboard', label: '⌨️ 자판', hint: '자판으로 또박또박 치고 Enter' },
+      { key: 'write', label: '✏️ 손글씨', hint: '손가락이나 펜으로 직접 씁니다' },
+      { key: 'blocks', label: '🔤 글자 블록', hint: '보기에서 글자를 골라 맞춥니다' },
+    ];
+    const now = modes.find((m) => m.key === settings.inputMode) ?? modes[0];
+    return h(
+      'div',
+      { class: 'input-switch' },
+      h(
+        'div',
+        { class: 'switch-row' },
+        ...modes.map((m) =>
+          h(
+            'button',
+            {
+              class: `switch-btn${settings.inputMode === m.key ? ' on' : ''}`,
+              type: 'button',
+              onclick: () => {
+                if (settings.inputMode === m.key) return;
+                settings.inputMode = m.key;
+                setSettings({ inputMode: m.key });
+                render();
+              },
+            },
+            m.label,
+          ),
+        ),
+      ),
+      h('p', { class: 'muted small' }, now.hint),
+    );
+  }
+
   function renderInput(item: Item): HTMLElement {
     const cellCount = Math.max(4, [...item.text].filter((c) => c.trim()).length + 2);
 
@@ -340,6 +380,7 @@ export function runView(params: Params): View {
         ),
         revealBox,
         hintBox,
+        inputSwitch(),
         renderInput(item),
         h('div', { class: 'row center' }, submitBtn),
         feedback,
@@ -353,21 +394,7 @@ export function runView(params: Params): View {
   }
 
   function settingsPanel(): HTMLElement {
-    const modeSel = h(
-      'select',
-      {
-        class: 'input',
-        onchange: (e: Event) => {
-          settings.inputMode = (e.target as HTMLSelectElement).value as RunSettings['inputMode'];
-          setSettings({ inputMode: settings.inputMode });
-          render();
-        },
-      },
-      ...(['keyboard', 'write', 'blocks'] as const).map((m) =>
-        h('option', { value: m, selected: settings.inputMode === m }, { keyboard: '자판으로 쓰기', write: '손으로 쓰기', blocks: '글자 블록' }[m]),
-      ),
-    );
-
+    const rateLabel = h('span', { class: 'muted small' }, `${settings.rate.toFixed(1)}배속`);
     const rate = h('input', {
       class: 'input',
       type: 'range',
@@ -381,7 +408,6 @@ export function runView(params: Params): View {
         rateLabel.textContent = `${settings.rate.toFixed(1)}배속`;
       },
     });
-    const rateLabel = h('span', { class: 'muted small' }, `${settings.rate.toFixed(1)}배속`);
 
     const repeat = h('input', {
       class: 'input',
@@ -435,7 +461,6 @@ export function runView(params: Params): View {
       { class: 'card settings-panel' },
       h('summary', {}, '읽기·채점 설정'),
       h('div', { class: 'settings-grid' },
-        h('label', { class: 'field' }, h('span', { class: 'field-label' }, '입력 방법'), modeSel),
         h('label', { class: 'field' }, h('span', { class: 'field-label' }, '읽어 주는 횟수'), repeat),
         h('label', { class: 'field' }, h('span', { class: 'field-label' }, '읽기 속도'), rate, rateLabel),
         h(

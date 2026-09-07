@@ -474,3 +474,13 @@ p:last-child { margin-bottom: 0; }
 .level-info { display: grid; gap: 2px; min-width: 0; flex: 1 1 260px; }
 .preview-line { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .level-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* 답을 쓰는 방법 고르기 — 숨기지 않는다 */
+.input-switch { margin: 14px 0 6px; display: grid; gap: 6px; justify-items: center; }
+.switch-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.switch-btn {
+  min-height: 44px; padding: 10px 16px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent; color: inherit;
+  font: inherit; font-size: 0.95rem;
+}
+.switch-btn.on { background: var(--brand); border-color: transparent; color: #fff; font-weight: 700; }

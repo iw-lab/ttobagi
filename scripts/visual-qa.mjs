@@ -178,11 +178,10 @@ try {
   console.log('\n[6] 글자 블록 입력');
   await page.evaluate((id) => (location.hash = `#/run/${id}?mode=practice`), listId);
   await sleep(300);
-  await page.evaluate(() => {
-    const sel = document.querySelector('.settings-panel select');
-    sel.value = 'blocks';
-    sel.dispatchEvent(new Event('change'));
-  });
+  // 답을 쓰는 방법은 화면 위 전환기로 고른다(설정 서랍에 숨겨 두면 아무도 못 찾는다)
+  const switchBtns = (await page.$$('.switch-btn')).length;
+  step('답 쓰는 방법이 화면에 보인다', switchBtns === 3, `${switchBtns}개`);
+  step('글자 블록으로 바꿨다', await clickText(page, '.switch-btn', '글자 블록'));
   await sleep(300);
   const tiles = (await page.$$('.tile')).length;
   step('글자 블록이 나온다', tiles > 0, `${tiles}개`);
@@ -190,11 +189,7 @@ try {
 
   /* ── 7. 손글씨 칸 ── */
   console.log('\n[7] 손글씨');
-  await page.evaluate(() => {
-    const sel = document.querySelector('.settings-panel select');
-    sel.value = 'write';
-    sel.dispatchEvent(new Event('change'));
-  });
+  step('손글씨로 바꿨다', await clickText(page, '.switch-btn', '손글씨'));
   await sleep(300);
   const pad = await page.$('.pad-canvas');
   step('손글씨 칸이 나온다', pad !== null);

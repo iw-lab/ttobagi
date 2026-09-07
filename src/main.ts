@@ -1,8 +1,9 @@
 import './styles.css';
 import { getSettings } from './engine/store';
-import { stopAudio } from './engine/speech';
+import { preloadRecordingIndex, stopAudio } from './engine/speech';
 import { h, clear } from './ui/dom';
 import { boardView } from './views/board';
+import { curriculumView } from './views/curriculum';
 import { homeView } from './views/home';
 import { listEditView } from './views/listEdit';
 import { listsView } from './views/lists';
@@ -35,7 +36,9 @@ function resolve(path: string[], params: Params): View {
     case '':
       return homeView();
     case 'lists':
-      return listsView(params);
+      return listsView();
+    case 'curriculum':
+      return curriculumView(params);
     case 'list':
       return listEditView({ ...params, id: id ?? 'new' });
     case 'run':
@@ -102,3 +105,6 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     });
   });
 }
+
+// 녹음 색인을 미리 채운다. 이게 준비돼 있어야 읽어 주기가 클릭과 같은 순간에 소리를 낸다.
+void preloadRecordingIndex();

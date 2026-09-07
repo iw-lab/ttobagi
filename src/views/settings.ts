@@ -1,6 +1,6 @@
 import { getSettings, getWho, setSettings, setWho, storageSize, wipeAll } from '../engine/store';
 import { clearAudio } from '../engine/idb';
-import { koreanVoices, loadVoices, voiceStatus } from '../engine/speech';
+import { koreanVoices, loadVoices, testSound, voiceStatus } from '../engine/speech';
 import { STRICTNESS_LABEL, type Strictness } from '../engine/grade';
 import { button, confirmBox, field, fill, h, navigate, toast } from '../ui/dom';
 import type { View } from './view';
@@ -10,6 +10,24 @@ export function settingsView(): View {
   const el = h('div', { class: 'view' });
 
   const voiceBox = h('p', { class: 'muted' }, '확인 중…');
+  const soundResult = h('p', { class: 'muted small' }, '');
+
+  // 「목소리가 목록에 있다」와 「실제로 소리가 난다」는 다른 문제다.
+  // 브라우저가 조작과 이어지지 않은 발화를 조용히 막기 때문에, 교실에서는 이 단추 하나로
+  // 스피커까지 실제로 소리가 닿는지 확인할 수 있어야 한다.
+  const soundTestBtn = button('🔊 소리 검사', async () => {
+    soundResult.textContent = '검사 중… 「또박또박」이 들리면 정상이에요.';
+    const r = await testSound();
+    soundResult.textContent =
+      r === 'ok'
+        ? '소리가 났어요. 이 기기는 그대로 쓰시면 됩니다.'
+        : r === 'no-korean'
+          ? '한국어 목소리가 없어요. 문항마다 선생님 목소리를 녹음해 주세요.'
+          : r === 'unsupported'
+            ? '이 브라우저는 읽어 주기를 지원하지 않아요. 녹음을 쓰거나 선생님이 읽어 주세요.'
+            : '소리가 나오지 않았어요. 기기 음량을 확인하고 다시 눌러 보세요. 그래도 안 되면 녹음을 쓰시면 됩니다.';
+    soundResult.className = r === 'ok' ? 'ok-text small' : 'notice small';
+  }, 'btn ghost');
   void (async () => {
     const status = await voiceStatus();
     await loadVoices();
@@ -23,6 +41,8 @@ export function settingsView(): View {
         : null,
     );
   })();
+
+  const soundBox = h('div', { class: 'row-stack' }, soundTestBtn, soundResult);
 
   const nameInput = h('input', {
     class: 'input',
@@ -74,7 +94,7 @@ export function settingsView(): View {
       h('label', { class: 'field-inline' }, easyFont, h('span', {}, '읽기 쉬운 글꼴·넓은 자간')),
       h('label', { class: 'field-inline' }, hideScore, h('span', {}, '점수 감추기 (해냈어요만 보여주기)')),
     ),
-    h('section', { class: 'card' }, h('h2', {}, '소리'), voiceBox),
+    h('section', { class: 'card' }, h('h2', {}, '소리'), voiceBox, soundBox),
     h(
       'section',
       { class: 'card' },

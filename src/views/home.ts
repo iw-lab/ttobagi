@@ -36,25 +36,25 @@ export function homeView(): View {
       {
         class: 'home-card primary',
         type: 'button',
-        onclick: () => navigate(recent ? `#/run/${recent.id}?mode=practice` : '#/lists'),
+        onclick: () => navigate(recent ? `#/run/${recent.id}?mode=practice` : '#/curriculum'),
       },
       h('span', { class: 'home-emoji' }, '✏️'),
       h('span', { class: 'home-title' }, '받아쓰기 연습'),
-      h('span', { class: 'home-sub' }, recent ? recent.title : '먼저 급수표를 만들어요'),
+      h('span', { class: 'home-sub' }, recent ? recent.title : '학년을 고르면 바로 시작해요'),
     ),
     h(
       'button',
-      { class: 'home-card', type: 'button', onclick: () => navigate('#/lists') },
+      { class: 'home-card', type: 'button', onclick: () => navigate('#/curriculum') },
       h('span', { class: 'home-emoji' }, '📋'),
-      h('span', { class: 'home-title' }, '급수표'),
-      h('span', { class: 'home-sub' }, `만들기 · 고치기 · 나눠 주기 (${lists.length}개)`),
+      h('span', { class: 'home-title' }, '학년별 급수표'),
+      h('span', { class: 'home-sub' }, '1~6학년 82급 · 소리까지 들어 있어요'),
     ),
     h(
       'button',
       {
         class: 'home-card',
         type: 'button',
-        onclick: () => navigate(recent ? `#/board/${recent.id}` : '#/lists'),
+        onclick: () => navigate(recent ? `#/board/${recent.id}` : '#/curriculum'),
       },
       h('span', { class: 'home-emoji' }, '🖥️'),
       h('span', { class: 'home-title' }, '칠판 모드'),
@@ -97,12 +97,12 @@ export function homeView(): View {
         'section',
         { class: 'card' },
         h('h2', {}, '처음이신가요?'),
-        h('p', {}, '선생님이 나눠 준 급수표를 그대로 넣어 쓰면 됩니다. 붙여넣기 한 번이면 끝나요.'),
+        h('p', {}, '만들 것 없습니다. 학년과 학기만 고르면 급수표도 소리도 이미 들어 있어요.'),
         h(
           'div',
           { class: 'row' },
-          button('급수표 만들기', () => navigate('#/list/new'), 'btn'),
-          button('예시 급수표 담기', () => navigate('#/lists?samples=1'), 'btn ghost'),
+          button('학년별 급수표 보기', () => navigate('#/curriculum'), 'btn'),
+          button('우리 반 급수표 만들기', () => navigate('#/list/new'), 'btn ghost'),
         ),
       );
 

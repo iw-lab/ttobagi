@@ -84,12 +84,15 @@ export function runView(params: Params): View {
 
   async function playCurrent(): Promise<void> {
     const item = currentItem();
-    unlockAudio();
+    // 순서가 중요하다 — 큐를 먼저 비우고, 그 다음에 깨운다.
+    // 반대로 하면 방금 넣은 «깨우기 발화»를 스스로 지워 다음 소리가 묵음이 된다.
     stopAudio();
+    unlockAudio();
     abort.abort();
     abort = new AbortController();
     state.listens++;
     const how = await playItem(item.id, item.text, {
+      audio: item.audio,
       rate: settings.rate,
       times: settings.repeat,
       betweenMs: 900,

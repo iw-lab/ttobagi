@@ -2,7 +2,7 @@
    자산 이름이 빌드마다 바뀌므로 «받아온 것을 그때그때 담는» 방식을 쓴다. */
 
 const CACHE = 'ttobagi-v1';
-const SHELL = ['./', './index.html', './manifest.webmanifest'];
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -52,7 +52,9 @@ self.addEventListener('fetch', (event) => {
           }
           return res;
         })
-        .catch(() => cached);
+        // 끊긴 상태에서 담아 둔 것도 없으면 «아무것도 아닌 것»을 돌려주면 안 된다.
+        // undefined 를 respondWith 하면 브라우저가 깨진 응답으로 받아 콘솔에 오류를 남긴다.
+        .catch(() => cached || new Response('', { status: 503, statusText: 'offline' }));
       return cached || fresh;
     }),
   );

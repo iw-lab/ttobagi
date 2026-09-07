@@ -3,3 +3,4 @@ dist/
 qa-shots/
 qa-report.json
 .DS_Store
+.audio-tmp/

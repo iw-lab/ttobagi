@@ -124,7 +124,7 @@ export function listEditView(params: Params): View {
 
     playBtn.onclick = async () => {
       stopAudio();
-      const how = await playItem(item.id, item.text, { rate: 0.9, times: 1 });
+      const how = await playItem(item.id, item.text, { rate: 0.9, times: 1, audio: item.audio });
       if (how === 'none') toast('읽어 줄 목소리가 없어요. 녹음을 해 보세요.', 'warn');
     };
 

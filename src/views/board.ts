@@ -49,12 +49,13 @@ export function boardView(params: Params): View {
   /* ───────── 칠판(표시) 화면 ───────── */
 
   async function play(): Promise<void> {
-    unlockAudio();
     stopAudio();
+    unlockAudio();
     abort.abort();
     abort = new AbortController();
     const item = list!.items[idx];
     const how = await playItem(item.id, item.text, {
+      audio: item.audio,
       rate: settings.rate,
       times: settings.repeat,
       betweenMs: 900,

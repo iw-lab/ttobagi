@@ -13,7 +13,7 @@ import puppeteer from 'puppeteer';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..');
 const SHOTS = resolve(ROOT, 'qa-shots');
-const BASE = process.env.QA_BASE ?? 'http://localhost:4173/ttobagi/';
+const BASE = process.env.QA_BASE ?? 'http://localhost:4173/';
 
 mkdirSync(SHOTS, { recursive: true });
 
@@ -89,14 +89,22 @@ try {
   step('역할 카드 4개', (await page.$$('.home-card')).length === 4);
   await shot(page, '01-home');
 
-  /* ── 2. 예시 급수표 담기 ── */
+  /* ── 2. 학년별 급수표에서 담기 ── */
   console.log('\n[2] 급수표 담기');
-  await page.evaluate(() => (location.hash = '#/lists'));
-  await sleep(250);
-  step('급수표 화면', (await textOf(page, 'h1')) === '급수표');
-  const added = await clickText(page, 'button.btn.small', '담기');
+  await page.evaluate(() => (location.hash = '#/curriculum'));
+  await sleep(300);
+  step('학년별 급수표 화면', (await textOf(page, 'h1')) === '급수표');
+  const levelRows = (await page.$$('.level-row')).length;
+  step('급수가 펼쳐져 있다', levelRows > 0, `${levelRows}급`);
+  const added = await clickText(page, '.level-actions button', '담기');
+  await sleep(500);
+  step('학년별 급수표를 담았다', added && (await textOf(page, 'h1')) === '급수표');
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem('ttobagi.v1') || '{}');
+    location.hash = `#/list/${raw.lists[0].id}`;
+  });
   await sleep(400);
-  step('예시 급수표를 담았다', added && (await textOf(page, 'h1')) === '급수표 고치기');
+  step('담은 급수표를 열었다', (await textOf(page, 'h1')) === '급수표 고치기');
   const itemCount = (await page.$$('.item-row')).length;
   step('문항이 편집기에 들어왔다', itemCount > 0, `${itemCount}문항`);
   await sleep(400);

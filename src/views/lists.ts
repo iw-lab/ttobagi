@@ -1,9 +1,8 @@
-import { createList, deleteList, getLists } from '../engine/store';
-import { SAMPLES } from '../engine/samples';
+import { deleteList, getLists } from '../engine/store';
 import { button, confirmBox, formatDate, h, navigate, toast } from '../ui/dom';
-import type { Params, View } from './view';
+import type { View } from './view';
 
-export function listsView(params: Params): View {
+export function listsView(): View {
   const el = h('div', { class: 'view' });
 
   const render = () => {
@@ -71,37 +70,13 @@ export function listsView(params: Params): View {
       h(
         'section',
         { class: 'card' },
-        h('h2', {}, '예시 급수표'),
+        h('h2', {}, '학년별 급수표'),
         h(
           'p',
           { class: 'muted' },
-          '학교 급수표는 학급마다 다릅니다. 아래는 시작점으로 쓰는 예시예요. 담아서 마음대로 고쳐 쓰세요.',
+          '1~6학년 82급이 소리까지 들어 있는 채로 준비되어 있습니다. 학교 급수표와 다르면 담아서 고쳐 쓰세요.',
         ),
-        h(
-          'ul',
-          { class: 'list' },
-          ...SAMPLES.map((s) =>
-            h(
-              'li',
-              { class: 'list-row' },
-              h(
-                'div',
-                { class: 'list-main' },
-                h('strong', {}, s.title),
-                h('span', { class: 'muted small' }, `${s.level} · ${s.items.length}문항 · ${s.point}`),
-              ),
-              button(
-                '담기',
-                () => {
-                  const created = createList(s.title, s.level, s.items);
-                  toast(`「${s.title}」을(를) 담았어요`);
-                  navigate(`#/list/${created.id}`);
-                },
-                'btn small',
-              ),
-            ),
-          ),
-        ),
+        button('학년별 급수표 보기', () => navigate('#/curriculum'), 'btn'),
       ),
       h(
         'section',
@@ -119,12 +94,6 @@ export function listsView(params: Params): View {
   };
 
   render();
-
-  if (params.samples === '1') {
-    queueMicrotask(() => {
-      el.querySelector('.card:nth-of-type(3)')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  }
 
   return { el, title: '급수표 — 또박이' };
 }

@@ -8,10 +8,12 @@
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --port 4173",
+    "preview": "APP_BASE=/ vite preview --port 4173 --strictPort",
     "test": "vitest run",
-    "qa": "vite build && node scripts/visual-qa.mjs",
-    "deploy": "APP_BASE=/ vite build && wrangler pages deploy dist --project-name ttobagi --branch main --commit-dirty=true"
+    "qa": "APP_BASE=/ vite build && node scripts/visual-qa.mjs",
+    "deploy": "APP_BASE=/ vite build && wrangler pages deploy dist --project-name ttobagi --branch main --commit-dirty=true",
+    "qa:sound": "APP_BASE=/ vite build && node scripts/audio-check.mjs",
+    "audio": "node scripts/build-audio.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",

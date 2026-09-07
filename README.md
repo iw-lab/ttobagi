@@ -38,7 +38,7 @@
 ```bash
 npm install
 npm run dev        # http://localhost:5173/ttobagi/
-npm test           # vitest — 채점 엔진 39개
+npm test           # vitest — 채점 엔진·공유·저장소 51개
 npm run typecheck  # tsc --noEmit
 npm run build      # dist/
 npm run qa         # 빌드 후 실제 브라우저(퍼피티어) 31개 점검 + 스크린샷

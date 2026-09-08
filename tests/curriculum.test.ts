@@ -69,4 +69,20 @@ describe('학년별 급수표', () => {
     // 4학년 이상은 평균 15자를 넘어야 «문장 받아쓰기»라 할 수 있다
     for (const g of [4, 5, 6]) expect(avg(g), `${g}학년 평균 길이`).toBeGreaterThan(15);
   });
+
+  it('문장 부호 뒤는 한 칸 띄운다', () => {
+    // 「결과는……아무도」처럼 부호에 다음 말이 붙어 있었다(2026-09-08).
+    // 받아쓰기 급수표가 규정을 어기면 아이가 그대로 배운다.
+    const violations: string[] = [];
+    for (const c of CURRICULUM) {
+      for (const t of c.items) {
+        for (const m of t.matchAll(/[.,!?;:…](?=[가-힣A-Za-z])/g)) {
+          // 3,000 · 1919. 3. 1. 처럼 숫자 사이의 부호는 붙여 쓴다
+          if (/\d/.test(t[m.index - 1] ?? '')) continue;
+          violations.push(`${c.id}: ${t}`);
+        }
+      }
+    }
+    expect(violations, violations.join(' / ')).toEqual([]);
+  });
 });

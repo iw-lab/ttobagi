@@ -33,6 +33,7 @@ export function boardView(params: Params): View {
   let idx = 0;
   let revealed = false;
   let timer: number | undefined;
+  let auto = false;
   let abort = new AbortController();
 
   let channel: BroadcastChannel | null = null;
@@ -72,22 +73,45 @@ export function boardView(params: Params): View {
     void play();
   }
 
+  /**
+   * 자동 진행은 «읽기가 끝난 다음부터» 간격을 센다.
+   * 예전에는 고정 시간마다 다음 문항으로 넘겼다. 「3번 읽기 · 8초 간격」처럼
+   * 읽는 데 걸리는 시간이 간격보다 길면, 세 번째 읽기 도중에 다음 문항이 시작돼
+   * 말이 잘렸다(실제 교실에서 그렇게 나왔다 — 2026-09-08).
+   */
+  function wait(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      timer = window.setTimeout(() => {
+        timer = undefined;
+        resolve();
+      }, ms);
+    });
+  }
+
   function startAuto(): void {
     stopAuto();
-    const step = () => {
-      if (idx >= list!.items.length - 1) {
-        stopAuto();
-        return;
+    auto = true;
+    toast(`다 읽어 준 뒤 ${settings.gap}초씩 기다려요`);
+    void (async () => {
+      while (auto) {
+        await play();            // 읽어 주기가 끝날 때까지 기다린다
+        if (!auto) return;
+        await wait(settings.gap * 1000); // 아이가 쓰는 시간
+        if (!auto) return;
+        if (idx >= list!.items.length - 1) {
+          stopAuto();
+          render();
+          return;
+        }
+        idx += 1;
+        revealed = false;
+        render();
       }
-      go(idx + 1);
-      timer = window.setTimeout(step, settings.gap * 1000 + 1500);
-    };
-    void play();
-    timer = window.setTimeout(step, settings.gap * 1000 + 1500);
-    toast(`${settings.gap}초 간격으로 넘어가요`);
+    })();
   }
 
   function stopAuto(): void {
+    auto = false;
     if (timer) window.clearTimeout(timer);
     timer = undefined;
   }
@@ -131,11 +155,9 @@ export function boardView(params: Params): View {
           revealed = !revealed;
           render();
         }, 'btn big ghost'),
-        button(timer ? '자동 멈춤' : '자동 진행', () => {
-          if (timer) {
-            stopAuto();
-            render();
-          } else startAuto();
+        button(auto ? '자동 멈춤' : '자동 진행', () => {
+          if (auto) stopAuto();
+          else startAuto();
           render();
         }, 'btn big ghost'),
         button('뒤 ▶', () => go(idx + 1), 'btn big ghost'),
@@ -158,7 +180,6 @@ export function boardView(params: Params): View {
             onchange: (e: Event) => {
               settings.gap = Number((e.target as HTMLSelectElement).value);
               setSettings({ gap: settings.gap });
-              if (timer) startAuto();
             },
           }, ...[5, 8, 10, 15, 20].map((n) => h('option', { value: String(n), selected: settings.gap === n }, `${n}초`))),
         ),

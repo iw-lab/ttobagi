@@ -115,6 +115,13 @@ body.easy-font {
 body.board-mode .appbar { display: none; }
 
 @media (max-width: 520px) {
+  .board { padding: 12px; gap: 12px; }
+  .board-title { font-size: 1rem; }
+  .board-count { font-size: 1.1rem; }
+  .board-controls .btn { min-width: 0; flex: 1 1 46%; min-height: 60px; font-size: 1rem; }
+}
+
+@media (max-width: 520px) {
   .appbar { padding-left: 10px; padding-right: 10px; gap: 6px; }
   .appbar-link { padding: 0 9px; font-size: 0.9rem; }
 }
@@ -411,7 +418,16 @@ p:last-child { margin-bottom: 0; }
   background: var(--card);
 }
 .board-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.board-title { font-size: 1.3rem; font-weight: 800; flex: 1; }
+/* 휴대폰에서는 제목이 한 글자씩 접혀 화면 절반을 먹었다 — 줄이고, 넘치면 … 로 자른다 */
+.board-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .board-count { font-size: 1.4rem; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
 .board-main {
   flex: 1;

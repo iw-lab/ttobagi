@@ -245,6 +245,74 @@ try {
   step('정답 공개가 된다', answerShown.length > 0, answerShown);
   await shot(page, '09-board');
 
+  // 자동 진행이 «읽는 도중에» 다음 문항으로 넘어가면 말이 잘린다.
+  // 3번 읽기 · 5초 간격으로 켜 두고, 문항마다 실제로 세 번을 다 읽었는지 센다.
+  const paced = await page.evaluate(async () => {
+    const setSel = (labelText, value) => {
+      const label = [...document.querySelectorAll('.board-settings label')].find((l) => l.textContent.includes(labelText));
+      const sel = label?.querySelector('select');
+      if (!sel) return false;
+      sel.value = value;
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    };
+    if (!setSel('읽기', '3') || !setSel('간격', '5')) return { skipped: true };
+
+    const number = () => document.querySelector('.board-number')?.textContent ?? '';
+    const counts = new Map();
+    // «끝까지 읽은» 횟수만 센다. 시작만 세면, 세 번째를 읽다가 잘려도 3번으로 보인다.
+    const finish = (at) => counts.set(at, (counts.get(at) ?? 0) + 1);
+
+    // 소리는 내지 않고 시간만 흉내낸다. 1.8초 = 실제 문장 한 번 읽는 시간.
+    // 중간에 멈추면(cancel·pause) 끝난 것으로 세지 않는다 — 그게 곧 «말이 잘렸다»이다.
+    const pending = new Set();
+    const schedule = (done) => {
+      const job = { at: number() };
+      job.timer = setTimeout(() => { pending.delete(job); finish(job.at); done(); }, 1800);
+      pending.add(job);
+      return job;
+    };
+    const abortAll = () => {
+      for (const job of pending) clearTimeout(job.timer);
+      pending.clear();
+    };
+    const origSpeak = speechSynthesis.speak.bind(speechSynthesis);
+    const origCancel = speechSynthesis.cancel.bind(speechSynthesis);
+    speechSynthesis.speak = (u) => schedule(() => u.onend?.(new Event('end')));
+    speechSynthesis.cancel = () => { abortAll(); origCancel(); };
+    const origPlay = HTMLAudioElement.prototype.play;
+    const origPause = HTMLAudioElement.prototype.pause;
+    HTMLAudioElement.prototype.play = function () {
+      schedule(() => this.dispatchEvent(new Event('ended')));
+      return Promise.resolve();
+    };
+    HTMLAudioElement.prototype.pause = function () { abortAll(); return origPause.call(this); };
+
+    [...document.querySelectorAll('.board-controls .btn')].find((b) => b.textContent.includes('자동 진행'))?.click();
+    let last = number();
+    let changes = 0;
+    for (let i = 0; i < 150; i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      if (number() !== last) { changes++; last = number(); }
+      if (changes >= 2) break;
+    }
+    [...document.querySelectorAll('.board-controls .btn')].find((b) => b.textContent.includes('자동 멈춤'))?.click();
+    abortAll();
+    speechSynthesis.speak = origSpeak;
+    speechSynthesis.cancel = origCancel;
+    HTMLAudioElement.prototype.play = origPlay;
+    HTMLAudioElement.prototype.pause = origPause;
+
+    // 마지막 문항은 아직 읽는 중일 수 있으니 «넘어간» 문항만 본다
+    const done = [...counts.entries()].slice(0, changes);
+    return { changes, done: done.map(([k, v]) => `${k}:${v}`), short: done.filter(([, v]) => v < 3).length };
+  });
+  step(
+    '자동 진행이 읽기를 끊지 않는다',
+    !paced.skipped && paced.changes >= 1 && paced.short === 0,
+    paced.skipped ? '설정을 찾지 못함' : `${paced.done.join(' ')} (3번씩 읽어야 함)`,
+  );
+
   /* ── 9. 인쇄물 ── */
   console.log('\n[9] 인쇄물');
   await page.setViewport(VIEWPORTS.whalebook);

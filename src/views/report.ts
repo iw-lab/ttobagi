@@ -31,6 +31,10 @@ export function reportView(): View {
 
     for (const a of attempts) {
       for (const ans of a.answers) {
+        // 그때의 정답이 남아 있지 않은 옛 기록은 진단에서 뺀다.
+        // 문항 번호는 그대로여도 급수표 내용이 바뀌었을 수 있어, 엉뚱한 문장을
+        // 「어려워하는 문항」으로 지목하게 된다.
+        if (ans.expected === undefined) continue;
         if (isCorrect(ans.verdict)) continue;
         for (const t of ans.tags) tagCount.set(t, (tagCount.get(t) ?? 0) + 1);
         if (!wrongByList.has(a.listId)) wrongByList.set(a.listId, new Set());

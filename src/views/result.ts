@@ -1,8 +1,8 @@
-import { getAttempt, getList, saveAttempt } from '../engine/store';
+import { deleteAttempt, getAttempt, getList, saveAttempt } from '../engine/store';
 import { grade, isCorrect, markedAnswer, tagStats, TAG_HELP } from '../engine/grade';
 import { RUN_MODE_LABEL, type Attempt } from '../engine/types';
 import { copyText, encodeResult, qrSvg, shareUrl } from '../engine/share';
-import { add, button, formatDate, h, navigate, toast } from '../ui/dom';
+import { add, button, confirmBox, formatDate, h, navigate, toast } from '../ui/dom';
 import type { Params, View } from './view';
 
 export function resultView(params: Params): View {
@@ -30,8 +30,12 @@ export function resultView(params: Params): View {
     const unconfirmed = attempt!.answers.filter((a) => !a.confirmed).length;
     const wrongIds = attempt!.answers.filter((a) => !isCorrect(a.verdict) && a.confirmed).map((a) => a.itemId);
 
-    // 예전 기록에는 «그때의 정답»이 없다. 그런 기록을 지금 급수표로 다시 채점해 보여 주면
-    // 저장된 ○×와 화면의 표시가 어긋난다(실제로 그래서 맞게 쓴 답에 ×가 붙어 보였다).
+    /**
+     * 예전 기록에는 «그때의 정답»이 없다.
+     * 그런 기록에 지금 급수표 문장을 정답이라고 붙여 놓고 그때의 ○×·태그를 같이 보여 주면
+     * 「정답과 쓴 것이 글자 하나까지 같은데 ×」라는 화면이 나온다 — 실제로 그렇게 나왔다(2026-09-08).
+     * 그때 무엇을 불러 줬는지 알 수 없으므로, 채점 결과를 아예 보여 주지 않는다.
+     */
     const legacy = attempt!.answers.some((a) => a.expected === undefined);
 
     const results = attempt!.answers
@@ -43,16 +47,27 @@ export function resultView(params: Params): View {
       h(
         'section',
         { class: 'card result-head' },
-        h('h1', {}, attempt!.settings.hideScore ? '다 했어요!' : `${correct} / ${total}`),
+        h('h1', {}, legacy ? '지난 기록' : attempt!.settings.hideScore ? '다 했어요!' : `${correct} / ${total}`),
         h('p', { class: 'muted' }, `${attempt!.listTitle} · ${RUN_MODE_LABEL[attempt!.mode]} · ${attempt!.who} · ${formatDate(attempt!.finishedAt)}`),
-        unconfirmed
+        !legacy && unconfirmed
           ? h('p', { class: 'notice' }, `손으로 쓴 답 ${unconfirmed}개는 아직 채점 전이에요. 아래에서 하나씩 봐 주세요.`)
           : null,
         legacy
           ? h(
-              'p',
+              'div',
               { class: 'notice' },
-              '이 기록은 급수표가 바뀌기 전에 본 것이라 정답이 지금과 다를 수 있어요. 다시 한 번 풀어 보면 정확한 결과가 나옵니다.',
+              h('p', {}, '급수표가 바뀌기 전에 본 기록이에요. 그때 무엇을 불러 줬는지 알 수 없어서 점수와 ○× 는 보여 드리지 않습니다. 아이가 쓴 것만 아래에 남겨 두었어요.'),
+              h(
+                'div',
+                { class: 'row' },
+                list ? button('지금 급수표로 다시 풀기', () => navigate(`#/run/${list.id}?mode=practice`), 'btn small') : null,
+                button('이 기록 지우기', () => {
+                  if (!confirmBox('이 기록을 지울까요?')) return;
+                  deleteAttempt(attempt!.id);
+                  toast('지웠어요');
+                  navigate('#/report');
+                }, 'btn small ghost'),
+              ),
             )
           : null,
       ),
@@ -61,7 +76,7 @@ export function resultView(params: Params): View {
     // 손글씨 채점 — 썸네일을 죽 늘어놓고 ○/× 만 누른다
     // 손으로 쓰다가 한 획도 안 그리고 낸 답은 ink 가 없다. 그것까지 여기 세워 두지 않으면
     // 「채점 전 n개」라고 말해 놓고 정작 채점할 자리가 없는 화면이 된다.
-    const inkAnswers = attempt!.answers.filter((a) => a.ink || (!a.confirmed && !a.text));
+    const inkAnswers = legacy ? [] : attempt!.answers.filter((a) => a.ink || (!a.confirmed && !a.text));
     if (inkAnswers.length) {
       el.append(
         h(
@@ -108,7 +123,7 @@ export function resultView(params: Params): View {
       h(
         'section',
         { class: 'card' },
-        h('h2', {}, '문항별로 보기'),
+        h('h2', {}, legacy ? '그때 쓴 것' : '문항별로 보기'),
         h(
           'ol',
           { class: 'result-list' },
@@ -119,6 +134,23 @@ export function resultView(params: Params): View {
               a.text && a.expected !== undefined
                 ? grade(expected, a.text, { strictness: attempt!.settings.strictness })
                 : null;
+            if (legacy) {
+              // 정답도 ○× 도 믿을 수 없다. 아이가 남긴 것만 그대로 보여 준다.
+              return h(
+                'li',
+                { class: 'result-row' },
+                h('span', { class: 'result-icon muted' }, '·'),
+                h(
+                  'div',
+                  { class: 'result-body' },
+                  a.text
+                    ? h('p', { class: 'answer-reveal' }, a.text)
+                    : a.ink
+                      ? h('img', { class: 'ink-mini', src: a.ink, alt: '쓴 글씨' })
+                      : h('p', { class: 'muted small' }, '빈 답'),
+                ),
+              );
+            }
             return h(
               'li',
               { class: `result-row ${isCorrect(a.verdict) ? 'ok' : 'no'}` },
@@ -163,7 +195,7 @@ export function resultView(params: Params): View {
     }
 
     const actions = h('div', { class: 'row' });
-    if (wrongIds.length && list) {
+    if (!legacy && wrongIds.length && list) {
       actions.append(
         button(`틀린 ${wrongIds.length}개 다시 쓰기`, () => navigate(`#/run/${list.id}?mode=retry&items=${wrongIds.join(',')}`), 'btn'),
       );
@@ -175,7 +207,7 @@ export function resultView(params: Params): View {
     actions.append(button('처음으로', () => navigate('#/'), 'btn ghost'));
 
     const shareBox = h('div', { class: 'share-box' });
-    void (async () => {
+    if (!legacy) void (async () => {
       const code = await encodeResult(attempt!, (id) => {
         const found = attempt!.answers.find((x) => x.itemId === id);
         return found ? answerOf(found) : itemText(id);
@@ -192,10 +224,9 @@ export function resultView(params: Params): View {
       );
     })();
 
-    el.append(
-      h('section', { class: 'card' }, h('h2', {}, '다음에 할 일'), actions),
-      h('details', { class: 'card' }, h('summary', {}, '결과 넘겨주기'), shareBox),
-    );
+    el.append(h('section', { class: 'card' }, h('h2', {}, '다음에 할 일'), actions));
+    // 옛 기록은 채점 결과가 없으므로 넘겨줄 것도 없다
+    if (!legacy) el.append(h('details', { class: 'card' }, h('summary', {}, '결과 넘겨주기'), shareBox));
   }
 
   render();

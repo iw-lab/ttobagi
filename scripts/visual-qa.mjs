@@ -360,6 +360,61 @@ try {
     revealed.includes('출석을 부르자') ? '문장으로 채점' : '낱말로 채점되고 있다',
   );
 
+  /* ── 14b. 옛 기록(그때의 정답이 없는 것) ── */
+  // 급수표를 고치면, 옛 기록의 ○×·태그는 그때의 문장에 대한 판정이다.
+  // 거기에 «지금» 문장을 정답이라고 붙여 놓으면 「정답과 쓴 것이 같은데 ×」가 된다.
+  const legacyId = await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem('ttobagi.v1') || '{}');
+    const id = 'legacyqa1';
+    raw.attempts = [
+      {
+        id,
+        listId: 'c-g5-2-01',
+        listTitle: '한자어 표기',
+        who: '검사',
+        mode: 'practice',
+        settings: JSON.parse(JSON.stringify(raw.settings ?? {})),
+        answers: [
+          {
+            itemId: 'g5-2-01-03',
+            text: '각자 맡은 역할을 성실히 해냈다.',
+            verdict: 'wrong',
+            tags: ['띄어쓰기', '글자더함'],
+            confirmed: true,
+            elapsed: 1000,
+          },
+        ],
+        startedAt: 0,
+        finishedAt: Date.now(),
+      },
+      ...(raw.attempts ?? []),
+    ];
+    localStorage.setItem('ttobagi.v1', JSON.stringify(raw));
+    return id;
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await sleep(500);
+  await page.evaluate((id) => (location.hash = `#/result/${id}`), legacyId);
+  await sleep(600);
+  const legacyView = await page.evaluate(() => ({
+    text: document.body.innerText,
+    icons: [...document.querySelectorAll('.result-icon')].map((e) => e.textContent.trim()),
+    tags: document.querySelectorAll('.tag').length,
+  }));
+  step(
+    '옛 기록은 ○×·태그를 보여 주지 않는다',
+    !legacyView.icons.some((i) => i === '×' || i === '○') && legacyView.tags === 0,
+    `${legacyView.icons.join('') || '없음'} · 태그 ${legacyView.tags}개`,
+  );
+  step('옛 기록은 점수 대신 「지난 기록」이라고 말한다', legacyView.text.includes('지난 기록'));
+  step('옛 기록에도 아이가 쓴 것은 남아 있다', legacyView.text.includes('각자 맡은 역할을 성실히 해냈다'));
+  await shot(page, '16-legacy');
+  await page.evaluate(() => {
+    const raw = JSON.parse(localStorage.getItem('ttobagi.v1') || '{}');
+    raw.attempts = (raw.attempts ?? []).filter((a) => a.id !== 'legacyqa1');
+    localStorage.setItem('ttobagi.v1', JSON.stringify(raw));
+  });
+
   /* ── 15. 접근성 기본 ── */
   console.log('\n[15] 접근성');
   await page.reload({ waitUntil: 'networkidle0' });

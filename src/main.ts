@@ -3,7 +3,7 @@ import { getSettings } from './engine/store';
 import { preloadRecordingIndex, stopAudio } from './engine/speech';
 import { builtinList } from './engine/curriculum';
 import { setBuiltinResolver } from './engine/store';
-import { h, clear } from './ui/dom';
+import { h, clear, confirmBox } from './ui/dom';
 import { boardView } from './views/board';
 import { curriculumView } from './views/curriculum';
 import { homeView } from './views/home';
@@ -19,6 +19,49 @@ import type { Params, View } from './views/view';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app 을 찾을 수 없습니다');
+
+/**
+ * 어느 화면에 있든 첫 화면으로 돌아갈 길을 하나 둔다.
+ * 화면마다 「처음으로」가 있기도 없기도 해서, 급수표를 고치다 막히면 나갈 데가 없었다.
+ * 시험·연습 중에는 쓴 답이 날아가므로 한 번 묻는다.
+ */
+const bar = h(
+  'header',
+  { class: 'appbar no-print' },
+  h(
+    'a',
+    {
+      class: 'appbar-home',
+      href: '#/',
+      onclick: (e: Event) => {
+        if (!location.hash.startsWith('#/run/')) return;
+        if (confirmBox('지금 나가면 쓰던 답이 사라져요. 첫 화면으로 갈까요?')) return;
+        e.preventDefault();
+      },
+    },
+    h('span', { class: 'appbar-mark' }, '또'),
+    h('span', {}, '또박이'),
+  ),
+  h(
+    'nav',
+    { class: 'appbar-nav' },
+    h('a', { class: 'appbar-link', href: '#/curriculum' }, '급수표'),
+    h('a', { class: 'appbar-link', href: '#/lists' }, '내 급수표'),
+    h('a', { class: 'appbar-link', href: '#/report' }, '내 기록'),
+    h('a', { class: 'appbar-link', href: '#/settings', title: '설정' }, '설정'),
+  ),
+);
+document.body.insertBefore(bar, app);
+
+function markCurrent(): void {
+  const hash = location.hash || '#/';
+  for (const link of bar.querySelectorAll<HTMLAnchorElement>('.appbar-link')) {
+    const target = link.getAttribute('href') ?? '';
+    link.classList.toggle('current', hash === target);
+  }
+  // 칠판 모드는 교실 앞에 띄우는 화면이라 머리띠가 자리를 뺏는다 — 접어 둔다.
+  document.body.classList.toggle('board-mode', hash.startsWith('#/board/') && !hash.includes('role=remote'));
+}
 
 let current: View | null = null;
 
@@ -88,6 +131,7 @@ function render(): void {
   clear(app!);
   app!.appendChild(view.el);
   document.title = view.title ?? '또박이';
+  markCurrent();
   window.scrollTo(0, 0);
 }
 

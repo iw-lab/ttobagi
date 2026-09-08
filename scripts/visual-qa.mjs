@@ -415,6 +415,45 @@ try {
     localStorage.setItem('ttobagi.v1', JSON.stringify(raw));
   });
 
+  /* ── 14c. 어느 화면에서도 첫 화면으로 ── */
+  // 화면마다 「처음으로」가 있기도 없기도 해서, 급수표를 고치다 나갈 데가 없었다.
+  console.log('\n[14c] 첫 화면으로 돌아가기');
+  const routes = [
+    ['#/', '첫 화면'],
+    ['#/curriculum', '학년별 급수표'],
+    ['#/lists', '내 급수표'],
+    ['#/list/new', '새 급수표'],
+    [`#/list/${listId}`, '급수표 고치기'],
+    [`#/print/${listId}`, '인쇄물'],
+    ['#/report', '내 기록'],
+    ['#/settings', '설정'],
+  ];
+  const missing = [];
+  for (const [hash, name] of routes) {
+    await page.evaluate((h) => (location.hash = h), hash);
+    await sleep(320);
+    const ok = await page.evaluate(() => {
+      const home = document.querySelector('.appbar-home');
+      if (!home) return false;
+      const r = home.getBoundingClientRect();
+      return r.width > 0 && r.height >= 40 && home.getAttribute('href') === '#/';
+    });
+    if (!ok) missing.push(name);
+  }
+  step('모든 화면에 첫 화면 단추가 있다', missing.length === 0, missing.join(', ') || `${routes.length}개 화면 확인`);
+
+  await page.evaluate(() => (location.hash = '#/'));
+  await sleep(300);
+  const homeWorks = await page.evaluate(async () => {
+    location.hash = '#/report';
+    await new Promise((r) => setTimeout(r, 250));
+    document.querySelector('.appbar-home').click();
+    await new Promise((r) => setTimeout(r, 350));
+    return location.hash === '#/' || location.hash === '';
+  });
+  step('첫 화면 단추를 누르면 실제로 간다', homeWorks);
+  await shot(page, '17-appbar');
+
   /* ── 15. 접근성 기본 ── */
   console.log('\n[15] 접근성');
   await page.reload({ waitUntil: 'networkidle0' });

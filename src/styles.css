@@ -64,6 +64,61 @@ body.easy-font {
 
 #app { min-height: 100vh; }
 
+/* 어느 화면에서도 첫 화면으로 돌아갈 수 있게 하는 머리띠 */
+.appbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: max(6px, env(safe-area-inset-top)) 16px 6px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.appbar-home {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  text-decoration: none;
+  color: var(--ink);
+  min-height: 44px;
+  padding: 0 6px;
+  border-radius: 10px;
+}
+.appbar-mark {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--brand);
+  color: #fff;
+  font-size: 0.95rem;
+}
+.appbar-nav { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+.appbar-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+.appbar-link:hover, .appbar-home:hover { background: color-mix(in srgb, var(--brand) 12%, transparent); }
+.appbar-link.current { color: var(--brand); font-weight: 700; }
+body.board-mode .appbar { display: none; }
+
+@media (max-width: 520px) {
+  .appbar { padding-left: 10px; padding-right: 10px; gap: 6px; }
+  .appbar-link { padding: 0 9px; font-size: 0.9rem; }
+}
+
 .view {
   max-width: 780px;
   margin: 0 auto;

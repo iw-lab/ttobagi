@@ -64,6 +64,11 @@ async function textOf(page, selector) {
 
 const browser = await puppeteer.launch({
   headless: 'new',
+  // 🔴 pipe: true 가 없으면 이 스크립트가 예외로 끝날 때 크롬이 살아남는다.
+  //    2026-09-10 실측: 화면 검사를 몇 번 돌린 뒤 좀비 크롬 34개가 쌓였고,
+  //    그것이 웹 브릿지를 굶겨 「입력창 없음」 연쇄 실패를 냈다 — 원인이 브릿지 밖에 있어
+  //    로그만 보면 영영 못 찾는다. 부모가 죽으면 파이프가 끊겨 크롬도 같이 죽는다.
+  pipe: true,
   args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-fake-ui-for-media-stream'],
 });
 
@@ -523,6 +528,43 @@ try {
   await shot(page, '17-appbar');
 
   /* ── 15. 접근성 기본 ── */
+  console.log('\n[14e] 영어 과목');
+  // 🔴 과목을 하나 더 얹으면 «국어를 영어로 채점하는» 길이 생기기 쉽다.
+  //    화면이 뜨는지가 아니라 «어느 규칙으로 채점하는지»를 본다.
+  await page.goto(`${BASE}#/curriculum`, { waitUntil: 'networkidle0' });
+  await sleep(500);
+  const tabs = await page.evaluate(() => [...document.querySelectorAll('.subject-tab')].map((b) => b.textContent.trim()));
+  step('과목 고르개에 국어와 영어가 있다', tabs.includes('국어') && tabs.includes('영어'), tabs.join(' / '));
+
+  // 영어 급수 id 규칙(e3-1-01)으로 곧장 들어간다
+  await page.goto(`${BASE}#/run/c-e3-1-01?mode=practice`, { waitUntil: 'networkidle0' });
+  await sleep(600);
+  const enTitle = await textOf(page, 'h1, h2');
+  step('영어 급수표가 열린다', !/찾을 수 없/.test(enTitle ?? ''), enTitle ?? '(없음)');
+
+  // 영어 문항을 «영어식 실수»로 틀리게 써서 영어 오류 유형이 나오는지 본다
+  // 자판으로 치고 확인을 눌러 «화면에 나오는 것»으로 본다
+  await page.evaluate(() => {
+    const input = document.querySelector('.answer-input');
+    if (input) { input.value = 'rabit'; input.dispatchEvent(new Event('input', { bubbles: true })); }
+  });
+  await clickText(page, 'button', '확인');
+  await sleep(500);
+  const shown = await page.evaluate(() => document.body.innerText);
+  const koOnly = ['받침', '겹받침', '된소리', '연음', '구개음화', '비음화', '유음화', '준말'];
+  step('영어 채점에 국어 오류 유형이 새지 않는다',
+    !koOnly.some((t) => shown.includes(t)),
+    koOnly.filter((t) => shown.includes(t)).join(', ') || '없음');
+
+  // 손글씨 칸이 네 줄인지 — 캔버스는 볼 수 없으니 «칸 개수 안내»가 영어 문구인지로 본다
+  await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('.switch-btn')].find((b) => b.textContent.includes('손글씨'));
+    if (btn) btn.click();
+  });
+  await sleep(500);
+  const padHint = await page.evaluate(() => document.body.innerText);
+  step('영어는 4선지 안내가 나온다', padHint.includes('줄에 맞춰'), padHint.includes('줄에 맞춰') ? '4선지' : '원고지 안내가 나왔다');
+
   console.log('\n[15] 접근성');
   await page.reload({ waitUntil: 'networkidle0' });
   await sleep(400);

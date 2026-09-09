@@ -1,6 +1,7 @@
 import { getList, getSettings, getWho, saveAttempt, setSettings } from '../engine/store';
-import { grade, STRICTNESS_LABEL, type Strictness, markedAnswer } from '../engine/grade';
+import { grade, STRICTNESS_LABEL, type Lang, type Strictness, markedAnswer } from '../engine/grade';
 import { initials } from '../engine/hangul';
+import { firstLetters } from '../engine/english';
 import { playItem, stopAudio, unlockAudio, voiceStatus } from '../engine/speech';
 import {
   newId,
@@ -26,6 +27,8 @@ interface RunState {
 
 export function runView(params: Params): View {
   const list = getList(params.id);
+  // 과목은 급수표가 정한다 — 설정이 아니다. 국어 급수표를 영어로 채점하는 길이 없어야 한다.
+  const lang: Lang = list?.lang === 'en' ? 'en' : 'ko';
   const mode = (params.mode as RunMode) || 'practice';
 
   if (!list) {
@@ -92,6 +95,7 @@ export function runView(params: Params): View {
     abort = new AbortController();
     state.listens++;
     const how = await playItem(item.id, item.text, {
+      lang,
       audio: item.audio,
       rate: settings.rate,
       times: settings.repeat,
@@ -109,6 +113,7 @@ export function runView(params: Params): View {
       id: newId('a'),
       listId: list!.id,
       listTitle: list!.title,
+      lang,
       who: getWho() || '나',
       mode,
       settings,
@@ -141,7 +146,7 @@ export function runView(params: Params): View {
     }
 
     const text = answerText();
-    const result = grade(item.text, text, { strictness: settings.strictness });
+    const result = grade(item.text, text, { strictness: settings.strictness, lang });
     return {
       itemId: item.id,
       expected: item.text,
@@ -212,7 +217,7 @@ export function runView(params: Params): View {
 
     if (settings.inputMode === 'write') {
       pad?.destroy();
-      pad = new WritingPad({ cells: cellCount, height: 160 });
+      pad = new WritingPad({ cells: cellCount, height: 160, guide: lang === 'en' ? 'lines' : 'grid' });
       return h(
         'div',
         { class: 'input-area' },
@@ -223,12 +228,14 @@ export function runView(params: Params): View {
           button('↶ 되돌리기', () => pad?.undo(), 'btn ghost small'),
           button('지우기', () => pad?.clearInk(), 'btn ghost small'),
         ),
-        h('p', { class: 'muted small' }, '연필이나 손가락으로 칸에 맞춰 또박또박 써 보세요.'),
+        h('p', { class: 'muted small' }, lang === 'en'
+          ? '연필이나 손가락으로 줄에 맞춰 또박또박 써 보세요. b 와 l 은 위선까지, g 와 p 는 아랫줄까지 내려가요.'
+          : '연필이나 손가락으로 칸에 맞춰 또박또박 써 보세요.'),
       );
     }
 
     if (settings.inputMode === 'blocks') {
-      blocks = new BlockInput({ answer: item.text });
+      blocks = new BlockInput({ answer: item.text, lang });
       return h('div', { class: 'input-area' }, blocks.root);
     }
 
@@ -296,11 +303,13 @@ export function runView(params: Params): View {
         class: 'btn ghost',
         type: 'button',
         onclick: () => {
-          hintBox.textContent = `첫소리: ${initials(item.text)}`;
+          hintBox.textContent = lang === 'en'
+            ? `첫 글자: ${firstLetters(item.text)}`
+            : `첫소리: ${initials(item.text)}`;
           hintBox.hidden = false;
         },
       },
-      '💡 첫소리 힌트',
+      lang === 'en' ? '💡 첫 글자 힌트' : '💡 첫소리 힌트',
     );
 
     const feedback = h('div', { class: 'feedback', hidden: true });
@@ -332,7 +341,7 @@ export function runView(params: Params): View {
         return;
       }
 
-      const result = grade(item.text, record.text, { strictness: settings.strictness });
+      const result = grade(item.text, record.text, { strictness: settings.strictness, lang });
       fill(
         feedback,
         h(

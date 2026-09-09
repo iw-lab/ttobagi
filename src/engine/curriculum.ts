@@ -16,8 +16,17 @@
  * (빌드 때 미리 구워 둔다 — 브라우저 목소리에 기대지 않는다.)
  */
 
+import { CURRICULUM_EN } from './curriculum-en';
+
+/** 과목 = 채점 언어. 앱 안에서 이 둘을 고른다. */
+export type Subject = 'ko' | 'en';
+
+export const SUBJECT_LABEL: Record<Subject, string> = { ko: '국어', en: '영어' };
+
 export interface LevelSheet {
   id: string;
+  /** 과목. 없으면 국어 — 국어 급수표 537개에 이 칸을 일일이 넣지 않으려고 뺄 수 있게 두었다. */
+  subject?: Subject;
   grade: 1 | 2 | 3 | 4 | 5 | 6;
   semester: 1 | 2;
   level: number;
@@ -3292,20 +3301,28 @@ export const CURRICULUM: LevelSheet[] = [
   },
 ];
 
+/** 과목별 급수표를 한자리에서 꺼낸다. 없는 과목을 물으면 빈 배열이다. */
+export function sheetsOf(subject: Subject): LevelSheet[] {
+  return subject === 'en' ? CURRICULUM_EN : CURRICULUM;
+}
+
 /** 급수표 하나를 앱이 쓰는 형태로 바꾼다. 음원 경로는 id 로 정해진다. */
 export function toWordList(sheet: LevelSheet, base = import.meta.env.BASE_URL): {
   id: string;
   title: string;
   level: string;
+  lang: Subject;
   items: { id: string; text: string; point?: string; audio?: string }[];
   createdAt: number;
   updatedAt: number;
 } {
   const now = Date.now();
+  const subject = sheet.subject ?? 'ko';
   return {
     id: `c-${sheet.id}`,
     title: sheet.title,
     level: `${sheet.grade}학년 ${sheet.semester}학기 · ${sheet.level}급`,
+    lang: subject,
     items: sheet.items.map((text, i) => ({
       id: `${sheet.id}-${String(i + 1).padStart(2, '0')}`,
       text,
@@ -3318,9 +3335,9 @@ export function toWordList(sheet: LevelSheet, base = import.meta.env.BASE_URL): 
 }
 
 /** 학년·학기로 묶어서 보여 주기 위한 목록 */
-export function bySemester(): { grade: number; semester: number; sheets: LevelSheet[] }[] {
+export function bySemester(subject: Subject = 'ko'): { grade: number; semester: number; sheets: LevelSheet[] }[] {
   const out: { grade: number; semester: number; sheets: LevelSheet[] }[] = [];
-  for (const sheet of CURRICULUM) {
+  for (const sheet of sheetsOf(subject)) {
     let group = out.find((g) => g.grade === sheet.grade && g.semester === sheet.semester);
     if (!group) {
       group = { grade: sheet.grade, semester: sheet.semester, sheets: [] };
@@ -3334,6 +3351,8 @@ export function bySemester(): { grade: number; semester: number; sheets: LevelSh
 /** `c-g5-2-01` 같은 id 로 내장 급수표를 찾는다 (저장소를 거치지 않는다) */
 export function builtinList(id: string): ReturnType<typeof toWordList> | undefined {
   if (!id.startsWith('c-')) return undefined;
-  const sheet = CURRICULUM.find((c) => c.id === id.slice(2));
+  const key = id.slice(2);
+  // 국어 id 는 g…, 영어 id 는 e… 로 시작해 서로 겹치지 않는다.
+  const sheet = CURRICULUM.find((c) => c.id === key) ?? CURRICULUM_EN.find((c) => c.id === key);
   return sheet ? toWordList(sheet) : undefined;
 }

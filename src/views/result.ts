@@ -13,6 +13,8 @@ export function resultView(params: Params): View {
     };
   }
   const list = getList(attempt.listId);
+  // 급수표가 지워졌어도 기록에 실린 과목으로 본다. 없으면 국어(그 칸이 생기기 전 기록).
+  const lang = attempt.lang ?? 'ko';
   /**
    * 정답 글자는 «응시 당시 기록»을 먼저 본다.
    * 급수표는 나중에 고쳐질 수 있고, 실제로 그래서 지난 결과가 엉뚱하게 다시 채점된 적이 있다.
@@ -40,7 +42,7 @@ export function resultView(params: Params): View {
 
     const results = attempt!.answers
       .filter((a) => a.confirmed && a.text && a.expected !== undefined)
-      .map((a) => grade(answerOf(a), a.text, { strictness: attempt!.settings.strictness }));
+      .map((a) => grade(answerOf(a), a.text, { strictness: attempt!.settings.strictness, lang }));
     const stats = tagStats(results);
 
     el.append(
@@ -132,7 +134,7 @@ export function resultView(params: Params): View {
             // 옛 기록은 다시 채점하지 않는다 — 저장된 판정과 어긋나는 표시를 만들지 않으려고
             const r =
               a.text && a.expected !== undefined
-                ? grade(expected, a.text, { strictness: attempt!.settings.strictness })
+                ? grade(expected, a.text, { strictness: attempt!.settings.strictness, lang })
                 : null;
             if (legacy) {
               // 정답도 ○× 도 믿을 수 없다. 아이가 남긴 것만 그대로 보여 준다.

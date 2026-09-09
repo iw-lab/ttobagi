@@ -1,7 +1,17 @@
 import { getLastListId, getLists, getWho, setWho } from '../engine/store';
+import { sheetsOf } from '../engine/curriculum';
 import { voiceStatus } from '../engine/speech';
 import { button, formatDate, h, navigate } from '../ui/dom';
 import type { View } from './view';
+
+/** 지금 들어 있는 급수를 그때그때 센다 */
+function sheetCounts(): string {
+  const ko = sheetsOf('ko').length;
+  const en = sheetsOf('en').length;
+  return en
+    ? `국어 ${ko}급 · 영어 ${en}급 · 소리까지 들어 있어요`
+    : `1~6학년 ${ko}급 · 소리까지 들어 있어요`;
+}
 
 export function homeView(): View {
   const lists = getLists();
@@ -47,7 +57,8 @@ export function homeView(): View {
       { class: 'home-card', type: 'button', onclick: () => navigate('#/curriculum') },
       h('span', { class: 'home-emoji' }, '📋'),
       h('span', { class: 'home-title' }, '학년별 급수표'),
-      h('span', { class: 'home-sub' }, '1~6학년 82급 · 소리까지 들어 있어요'),
+      // 🔴 숫자를 글로 박지 않는다 — 급수를 늘렸는데 첫 화면만 「82급」으로 남아 있었다.
+      h('span', { class: 'home-sub' }, sheetCounts()),
     ),
     h(
       'button',

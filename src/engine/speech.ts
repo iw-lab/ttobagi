@@ -46,9 +46,14 @@ export function loadVoices(timeoutMs = 1500): Promise<SpeechSynthesisVoice[]> {
   });
 }
 
+/** 어느 언어의 목소리인가 — 이름을 박아 두면 기기가 바뀔 때 조용히 깨진다. 반드시 lang 으로 찾는다. */
+export function voicesFor(lang: SpeechLang): SpeechSynthesisVoice[] {
+  const prefix = lang === 'en' ? 'en' : 'ko';
+  return cachedVoices.filter((v) => v.lang.toLowerCase().startsWith(prefix));
+}
+
 export function koreanVoices(): SpeechSynthesisVoice[] {
-  // 이름을 박아 두면 기기가 바뀔 때 조용히 깨진다 — 반드시 lang 으로 찾는다
-  return cachedVoices.filter((v) => v.lang.toLowerCase().startsWith('ko'));
+  return voicesFor('ko');
 }
 
 export async function voiceStatus(): Promise<VoiceStatus> {
@@ -58,19 +63,28 @@ export async function voiceStatus(): Promise<VoiceStatus> {
 }
 
 /** 기기 안에서 도는 음성을 먼저 고른다 — 인터넷이 끊겨도 소리가 난다 */
-export function pickVoice(preferredName?: string): SpeechSynthesisVoice | null {
-  const ko = koreanVoices();
-  if (!ko.length) return null;
+export function pickVoice(preferredName?: string, lang: SpeechLang = 'ko'): SpeechSynthesisVoice | null {
+  const list = voicesFor(lang);
+  if (!list.length) return null;
   if (preferredName) {
-    const named = ko.find((v) => v.name === preferredName);
+    const named = list.find((v) => v.name === preferredName);
     if (named) return named;
   }
-  return ko.find((v) => v.localService) ?? ko[0];
+  return list.find((v) => v.localService) ?? list[0];
 }
 
 /* ───────────────────────── 읽어 주기 ───────────────────────── */
 
+/**
+ * 읽어 줄 언어. 🔴 영어 문항을 한국어 목소리로 읽히면 안 된다 —
+ * 한국어 음운으로 읽은 영어를 표준으로 배우게 되므로 «앱이 해를 끼치는» 쪽이다.
+ * 내장 급수표에는 미리 구운 음원이 있어 여기까지 오지 않지만,
+ * 교사가 만든 영어 급수표에는 음원이 없어 이 길로 온다.
+ */
+export type SpeechLang = 'ko' | 'en';
+
 export interface SpeakOptions {
+  lang?: SpeechLang;
   rate?: number;
   /** 몇 번 읽을지 */
   times?: number;
@@ -82,17 +96,26 @@ export interface SpeakOptions {
   signal?: AbortSignal;
 }
 
-const PUNCT_WORDS: [RegExp, string][] = [
-  [/\./g, ' 마침표 '],
-  [/\?/g, ' 물음표 '],
-  [/!/g, ' 느낌표 '],
-  [/,/g, ' 쉼표 '],
-];
+const PUNCT_WORDS: Record<SpeechLang, [RegExp, string][]> = {
+  ko: [
+    [/\./g, ' 마침표 '],
+    [/\?/g, ' 물음표 '],
+    [/!/g, ' 느낌표 '],
+    [/,/g, ' 쉼표 '],
+  ],
+  // 영어 받아쓰기에서 교사가 실제로 부르는 말이다.
+  en: [
+    [/\./g, ' period '],
+    [/\?/g, ' question mark '],
+    [/!/g, ' exclamation mark '],
+    [/,/g, ' comma '],
+  ],
+};
 
-export function spokenText(text: string, readPunct: boolean): string {
+export function spokenText(text: string, readPunct: boolean, lang: SpeechLang = 'ko'): string {
   if (!readPunct) return text;
   let out = text;
-  for (const [re, word] of PUNCT_WORDS) out = out.replace(re, word);
+  for (const [re, word] of PUNCT_WORDS[lang]) out = out.replace(re, word);
   return out.replace(/\s+/g, ' ').trim();
 }
 
@@ -131,12 +154,14 @@ function speakOnce(text: string, opts: SpeakOptions): Promise<boolean> {
     const attempt = () => {
       tries++;
       const u = new SpeechSynthesisUtterance(text);
-      const voice = pickVoice(opts.voiceName);
+      const want = opts.lang ?? 'ko';
+      // 교사가 고른 목소리 이름은 «국어» 설정이다 — 영어를 읽을 때는 따르지 않는다.
+      const voice = pickVoice(want === 'ko' ? opts.voiceName : undefined, want);
       if (voice) {
         u.voice = voice;
         u.lang = voice.lang;
       } else {
-        u.lang = 'ko-KR';
+        u.lang = want === 'en' ? 'en-US' : 'ko-KR';
       }
       u.rate = opts.rate ?? 0.9;
 
@@ -202,7 +227,7 @@ const wait = (ms: number, signal?: AbortSignal) =>
 export async function speak(text: string, opts: SpeakOptions = {}): Promise<boolean> {
   if (!synth) return false;
   const times = Math.max(1, opts.times ?? 1);
-  const body = spokenText(text, opts.readPunct ?? false);
+  const body = spokenText(text, opts.readPunct ?? false, opts.lang ?? 'ko');
   let heard = false;
   for (let i = 0; i < times; i++) {
     if (opts.signal?.aborted) return heard;

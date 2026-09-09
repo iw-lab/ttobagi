@@ -5,7 +5,7 @@
  * 담기 없이 곧바로 «연습 / 시험 / 칠판»으로 갈 수 있고, 고치고 싶으면 담아서 고친다.
  */
 
-import { bySemester, toWordList, type LevelSheet } from '../engine/curriculum';
+import { bySemester, sheetsOf, SUBJECT_LABEL, toWordList, type LevelSheet, type Subject } from '../engine/curriculum';
 import { upsertList } from '../engine/store';
 import { newId } from '../engine/types';
 import { button, h, navigate, toast } from '../ui/dom';
@@ -34,20 +34,51 @@ function copyToMine(sheet: LevelSheet): void {
 }
 
 export function curriculumView(params: Params): View {
-  const groups = bySemester();
-  const initial = params.grade ? Number(params.grade) : 2;
-  let openKey = `${initial}-${params.semester ?? 1}`;
+  let subject: Subject = params.subject === 'en' ? 'en' : 'ko';
+  // 국어는 1학년 2학기부터, 영어는 3학년 1학기부터 시작한다.
+  const firstOpen = (s: Subject): string =>
+    s === 'en' ? `3-1` : `${params.grade ? Number(params.grade) : 2}-${params.semester ?? 1}`;
+  let openKey = firstOpen(subject);
 
   const el = h('div', { class: 'view' });
 
   function render(): void {
+    const groups = bySemester(subject);
+    const hasEnglish = sheetsOf('en').length > 0;
     el.replaceChildren(
       h(
         'section',
         { class: 'card' },
         h('h1', {}, '급수표'),
+        // 영어 급수표가 아직 하나도 없으면 «고를 것이 없는 고르개»를 보여 주지 않는다.
+        hasEnglish
+          ? h(
+              'div',
+              { class: 'subject-tabs', role: 'tablist', 'aria-label': '과목' },
+              ...(['ko', 'en'] as const).map((k) =>
+                h(
+                  'button',
+                  {
+                    class: `subject-tab${subject === k ? ' on' : ''}`,
+                    type: 'button',
+                    role: 'tab',
+                    'aria-selected': String(subject === k),
+                    onclick: () => {
+                      if (subject === k) return;
+                      subject = k;
+                      openKey = firstOpen(k);
+                      render();
+                    },
+                  },
+                  SUBJECT_LABEL[k],
+                ),
+              ),
+            )
+          : null,
         h('p', { class: 'muted' }, '학년과 학기를 고르면 급수표가 나옵니다. 만들지 않아도 바로 쓸 수 있어요.'),
-        h('p', { class: 'muted small' }, '문항마다 또박또박 읽어 주는 소리가 이미 들어 있습니다 — 인터넷이 끊겨도 한 번 연 급수표는 그대로 들려요.'),
+        h('p', { class: 'muted small' }, subject === 'en'
+          ? '영어는 원어민이 읽어 주는 소리가 들어 있고, 손글씨 칸은 영어 공책처럼 네 줄로 나옵니다.'
+          : '문항마다 또박또박 읽어 주는 소리가 이미 들어 있습니다 — 인터넷이 끊겨도 한 번 연 급수표는 그대로 들려요.'),
       ),
       ...groups.map((g) => {
         const key = `${g.grade}-${g.semester}`;

@@ -20,6 +20,24 @@ import {
   toJamo,
   type Syllable,
 } from './hangul';
+import {
+  EN_PUNCT_RE,
+  EN_TAGS,
+  EN_TAG_HELP,
+  foldApostrophe,
+  letterCost,
+  letterDistance,
+  tagSentence,
+  type EnErrorTag,
+} from './english';
+
+/**
+ * 채점할 언어. 없으면 «국어» — 사용자 기기에 이미 저장된 급수표에는 이 칸이 없다.
+ * 🔴 기본값을 'en' 쪽으로 기울이면 교실에 깔린 국어 급수표가 그 순간 영어로 채점된다.
+ */
+export type Lang = 'ko' | 'en';
+
+export const LANG_LABEL: Record<Lang, string> = { ko: '국어', en: '영어' };
 
 /** 채점 엄격도 — 교사가 학급 기준에 맞춰 고른다 */
 export type Strictness = 'char' | 'space' | 'full';
@@ -30,7 +48,7 @@ export const STRICTNESS_LABEL: Record<Strictness, string> = {
   full: '글자+띄어쓰기+문장부호',
 };
 
-export type ErrorTag =
+export type KoErrorTag =
   | '받침'
   | '겹받침'
   | '된소리'
@@ -48,14 +66,23 @@ export type ErrorTag =
   | '글자더함'
   | '기타';
 
-export const ALL_TAGS: ErrorTag[] = [
+/** 두 언어의 오류 유형을 합친 것. 겹치는 이름(띄어쓰기·문장부호·글자빠짐…)은 뜻이 같다. */
+export type ErrorTag = KoErrorTag | EnErrorTag;
+
+export const KO_TAGS: KoErrorTag[] = [
   '받침', '겹받침', '된소리', '거센소리', '연음', '구개음화', '비음화',
   '유음화', '모음혼동', '자음혼동', '띄어쓰기', '문장부호', '준말',
   '글자빠짐', '글자더함', '기타',
 ];
 
+/** 화면에 늘어놓는 차례. 국어 것을 먼저 두고, 영어에만 있는 것을 뒤에 잇는다. */
+export const ALL_TAGS: ErrorTag[] = [
+  ...KO_TAGS,
+  ...EN_TAGS.filter((t) => !(KO_TAGS as string[]).includes(t)),
+];
+
 /** 태그 설명 — 오답 리포트에서 아이·학부모가 읽는 문장 */
-export const TAG_HELP: Record<ErrorTag, string> = {
+const KO_TAG_HELP: Record<KoErrorTag, string> = {
   받침: '받침을 빠뜨리거나 다른 받침으로 썼어요.',
   겹받침: '겹받침(ㄳ, ㄺ, ㅄ 같은 두 개짜리 받침)을 정확히 쓰지 못했어요.',
   된소리: '된소리(ㄲ, ㄸ, ㅃ, ㅆ, ㅉ)와 예사소리를 바꿔 썼어요.',
@@ -73,6 +100,12 @@ export const TAG_HELP: Record<ErrorTag, string> = {
   글자더함: '글자를 더 썼어요.',
   기타: '다른 종류의 실수예요.',
 };
+
+/**
+ * 겹치는 이름은 «영어 쪽 설명»으로 덮지 않는다 — 국어 급수표가 압도적으로 많고,
+ * 영어 설명이 국어 결과 화면에 새어 나오면 아이가 읽는 문장이 엉뚱해진다.
+ */
+export const TAG_HELP: Record<ErrorTag, string> = { ...EN_TAG_HELP, ...KO_TAG_HELP };
 
 export type Verdict = 'correct' | 'partial' | 'wrong';
 
@@ -96,7 +129,7 @@ export interface GradeResult {
   verdict: Verdict;
   /** 0~1. 자모 단위 유사도 */
   similarity: number;
-  /** 자모 편집거리 */
+  /** 편집거리 — 국어는 자모 단위, 영어는 글자 단위 */
   jamoDistance: number;
   /** 틀린 음절 수 */
   wrongCount: number;
@@ -112,6 +145,58 @@ export interface GradeOptions {
   strictness?: Strictness;
   /** 한 글자만, 자모 1개 차이면 '부분 정답'으로 볼지 */
   allowPartial?: boolean;
+  /** 채점할 언어. 안 주면 국어 — 이미 저장된 급수표에는 이 칸이 없다. */
+  lang?: Lang;
+}
+
+/* ─────────────────────────── 언어별 부품 ─────────────────────────── */
+
+/**
+ * 언어마다 다른 것은 이 네 가지뿐이다 — 부호의 범위, 공백·대소문자를 무엇으로 볼지,
+ * 글자 한 칸의 «닮음», 그리고 편집거리의 단위.
+ * 정렬·표시·판정은 두 언어가 그대로 나눠 쓴다.
+ */
+interface LangOps {
+  punct: RegExp;
+  /** 비교 전에 글자를 고르는 손질. 글자 수를 바꾸지 않아야 한다(표시 자리가 어긋난다). */
+  pre: (text: string) => string;
+  /** 'char' 엄격도에서 공백을 지우는가. 국어의 띄어쓰기는 «따로 배우는 것»이라 지우고,
+   *  영어의 낱말 사이 빈칸은 철자 그 자체라 지우지 않는다. */
+  dropSpaceAtChar: boolean;
+  /** 'full' 미만에서 대소문자를 같은 것으로 보는가 */
+  foldCaseBelowFull: boolean;
+  unitCost: (a: string, b: string) => number;
+  distance: (a: string, b: string) => number;
+  distanceLen: (text: string) => number;
+}
+
+const OPS: Record<Lang, LangOps> = {
+  ko: {
+    punct: PUNCT_RE,
+    pre: (t) => t,
+    dropSpaceAtChar: true,
+    foldCaseBelowFull: false,
+    unitCost: syllableCost,
+    distance: jamoDistance,
+    distanceLen: (t) => toJamo(t).length,
+  },
+  en: {
+    punct: EN_PUNCT_RE,
+    pre: foldApostrophe,
+    dropSpaceAtChar: false,
+    foldCaseBelowFull: true,
+    unitCost: letterCost,
+    distance: letterDistance,
+    distanceLen: (t) => t.length,
+  },
+};
+
+// PUNCT_RE 는 /g 라 test() 가 lastIndex 를 물고 있어 한 글자씩 검사하면 결과가 번갈아 나온다.
+const ONE = new Map<Lang, RegExp>();
+function punctOne(lang: Lang): RegExp {
+  let re = ONE.get(lang);
+  if (!re) { re = new RegExp(OPS[lang].punct.source); ONE.set(lang, re); }
+  return re;
 }
 
 /* ────────────────────────────── 정규화 ────────────────────────────── */
@@ -121,8 +206,8 @@ export function normalizeBase(text: string): string {
   return text.normalize('NFC').replace(/\s+/g, ' ').trim();
 }
 
-export function stripPunct(text: string): string {
-  return text.replace(PUNCT_RE, '');
+export function stripPunct(text: string, lang: Lang = 'ko'): string {
+  return text.replace(OPS[lang].punct, '');
 }
 
 export function stripSpace(text: string): string {
@@ -137,27 +222,35 @@ export function stripSpace(text: string): string {
 export function comparableMapped(
   text: string,
   strictness: Strictness,
+  lang: Lang = 'ko',
 ): { base: string; text: string; map: number[] } {
-  const base = normalizeBase(text);
+  const ops = OPS[lang];
+  const one = punctOne(lang);
+  const base = ops.pre(normalizeBase(text));
   const chars = [...base];
   const keep: string[] = [];
   const map: number[] = [];
   chars.forEach((ch, i) => {
-    if (strictness !== 'full' && PUNCT_ONE.test(ch)) return;
-    if (strictness === 'char' && /\s/.test(ch)) return;
-    keep.push(ch);
+    if (strictness !== 'full' && one.test(ch)) return;
+    if (strictness === 'char' && ops.dropSpaceAtChar && /\s/.test(ch)) return;
+    // 소문자로 내려도 글자 수는 그대로라 map 의 자리는 어긋나지 않는다.
+    keep.push(strictness !== 'full' && ops.foldCaseBelowFull ? ch.toLowerCase() : ch);
     map.push(i);
   });
   return { base, text: keep.join(''), map };
 }
 
-export function comparable(text: string, strictness: Strictness): string {
-  const base = normalizeBase(text);
+export function comparable(text: string, strictness: Strictness, lang: Lang = 'ko'): string {
+  const ops = OPS[lang];
+  const base = ops.pre(normalizeBase(text));
+  const fold = (t: string): string => (ops.foldCaseBelowFull ? t.toLowerCase() : t);
   switch (strictness) {
-    case 'char':
-      return stripSpace(stripPunct(base));
+    case 'char': {
+      const noPunct = stripPunct(base, lang);
+      return fold(ops.dropSpaceAtChar ? stripSpace(noPunct) : normalizeBase(noPunct));
+    }
     case 'space':
-      return normalizeBase(stripPunct(base));
+      return fold(normalizeBase(stripPunct(base, lang)));
     case 'full':
       return base;
   }
@@ -185,7 +278,11 @@ function syllableCost(a: string, b: string): number {
 }
 
 /** 정답·답안을 음절 단위로 정렬한다. 가중 편집거리라 '비슷한 글자'가 서로 짝지어진다. */
-export function alignSyllables(expected: string[], actual: string[]): Op[] {
+export function alignSyllables(
+  expected: string[],
+  actual: string[],
+  cost: (a: string, b: string) => number = syllableCost,
+): Op[] {
   const n = expected.length;
   const m = actual.length;
   const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
@@ -196,7 +293,7 @@ export function alignSyllables(expected: string[], actual: string[]): Op[] {
       dp[i][j] = Math.min(
         dp[i - 1][j] + 1,
         dp[i][j - 1] + 1,
-        dp[i - 1][j - 1] + syllableCost(expected[i - 1], actual[j - 1]),
+        dp[i - 1][j - 1] + cost(expected[i - 1], actual[j - 1]),
       );
     }
   }
@@ -205,7 +302,7 @@ export function alignSyllables(expected: string[], actual: string[]): Op[] {
   let j = m;
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0) {
-      const c = syllableCost(expected[i - 1], actual[j - 1]);
+      const c = cost(expected[i - 1], actual[j - 1]);
       if (Math.abs(dp[i][j] - (dp[i - 1][j - 1] + c)) < 1e-9) {
         ops.push({ type: c === 0 ? 'match' : 'sub', ei: i - 1, ai: j - 1 });
         i--; j--;
@@ -338,9 +435,9 @@ function tagAbbreviation(expected: string, actual: string, tags: Set<ErrorTag>):
 }
 
 /** 공백 위치가 다른가 — 엄격도와 무관하게 '정보'로는 항상 낸다 */
-export function hasSpacingDiff(expected: string, actual: string): boolean {
-  const e = normalizeBase(stripPunct(expected));
-  const a = normalizeBase(stripPunct(actual));
+export function hasSpacingDiff(expected: string, actual: string, lang: Lang = 'ko'): boolean {
+  const e = normalizeBase(stripPunct(expected, lang));
+  const a = normalizeBase(stripPunct(actual, lang));
   // 한쪽이 비었으면 '띄어쓰기가 다르다'고 말할 게 없다 (빈 답안은 글자빠짐으로 잡힌다)
   if (e === '' || a === '') return false;
   if (stripSpace(e) !== stripSpace(a)) {
@@ -358,19 +455,17 @@ function countSpaces(text: string): number {
   return n;
 }
 
-export function hasPunctDiff(expected: string, actual: string): boolean {
+export function hasPunctDiff(expected: string, actual: string, lang: Lang = 'ko'): boolean {
   // 종류만 비교하면 '가.나' 와 '가나.' 가 같아진다 — 부호가 «몇 번째 글자 뒤에» 붙었는지까지 본다.
-  return punctSignature(expected) !== punctSignature(actual);
+  return punctSignature(expected, lang) !== punctSignature(actual, lang);
 }
 
-// PUNCT_RE 는 /g 라 test() 가 lastIndex 를 물고 있어 한 글자씩 검사하면 결과가 번갈아 나온다.
-const PUNCT_ONE = new RegExp(PUNCT_RE.source);
-
-function punctSignature(text: string): string {
+function punctSignature(text: string, lang: Lang): string {
+  const one = punctOne(lang);
   const out: string[] = [];
   let at = 0;
   for (const ch of normalizeBase(text)) {
-    if (PUNCT_ONE.test(ch)) out.push(`${at}${ch}`);
+    if (one.test(ch)) out.push(`${at}${ch}`);
     else if (ch !== ' ') at++;
   }
   return out.join('|');
@@ -381,20 +476,22 @@ function punctSignature(text: string): string {
 export function grade(expectedRaw: string, actualRaw: string, opts: GradeOptions = {}): GradeResult {
   const strictness = opts.strictness ?? 'char';
   const allowPartial = opts.allowPartial ?? true;
+  const lang = opts.lang ?? 'ko';
+  const ops_ = OPS[lang];
 
-  const expectedBase = normalizeBase(expectedRaw);
-  const actualBase = normalizeBase(actualRaw);
+  const expectedBase = ops_.pre(normalizeBase(expectedRaw));
+  const actualBase = ops_.pre(normalizeBase(actualRaw));
 
-  const spacingDiff = hasSpacingDiff(expectedBase, actualBase);
-  const punctDiff = hasPunctDiff(expectedBase, actualBase);
+  const spacingDiff = hasSpacingDiff(expectedBase, actualBase, lang);
+  const punctDiff = hasPunctDiff(expectedBase, actualBase, lang);
 
-  const mapped = comparableMapped(expectedRaw, strictness);
+  const mapped = comparableMapped(expectedRaw, strictness, lang);
   const e = mapped.text;
-  const a = comparable(actualRaw, strictness);
+  const a = comparable(actualRaw, strictness, lang);
 
   const eChars = [...e];
   const aChars = [...a];
-  const ops = alignSyllables(eChars, aChars);
+  const ops = alignSyllables(eChars, aChars, ops_.unitCost);
 
   const tags = new Set<ErrorTag>();
   const marks: Mark[] = [];
@@ -410,34 +507,44 @@ export function grade(expectedRaw: string, actualRaw: string, opts: GradeOptions
       pairs.set(op.ei, op.ai);
       wrongCount++;
       marks.push({ index: op.ei, srcIndex: mapped.map[op.ei], expected: eChars[op.ei], actual: aChars[op.ai], status: 'wrong' });
-      const de = decompose(eChars[op.ei]);
-      const da = decompose(aChars[op.ai]);
-      if (de && da) tagPair(de, da, tags, decompose(eChars[op.ei + 1] ?? ''));
-      else tags.add('기타');
+      if (lang === 'ko') {
+        const de = decompose(eChars[op.ei]);
+        const da = decompose(aChars[op.ai]);
+        if (de && da) tagPair(de, da, tags, decompose(eChars[op.ei + 1] ?? ''));
+        else tags.add('기타');
+      }
+      // 영어는 글자 한 칸만 봐서는 «무슨 실수인지» 말할 수 없다 —
+      // 묵음·겹글자·어미는 낱말 전체를 봐야 드러나므로 아래 tagSentence 가 맡는다.
     } else if (op.type === 'del') {
       wrongCount++;
       marks.push({ index: op.ei, srcIndex: mapped.map[op.ei], expected: eChars[op.ei], actual: null, status: 'missing' });
+      // 🔴 영어에서 글자 하나가 빠진 것을 여기서 「글자빠짐」이라 부르면,
+      //    겹글자·묵음·어미처럼 «이름이 있는» 실수마다 글자빠짐이 따라붙어 통계를 희석시킨다.
+      //    낱말을 통째로 빠뜨린 경우만 tagSentence 가 글자빠짐으로 센다.
       if (eChars[op.ei].trim() === '') tags.add('띄어쓰기');
-      else tags.add('글자빠짐');
+      else if (lang === 'ko') tags.add('글자빠짐');
     } else {
       const ch = aChars[op.ai];
       extras.push(ch);
       if (ch.trim() === '') tags.add('띄어쓰기');
-      else tags.add('글자더함');
+      else if (lang === 'ko') tags.add('글자더함');
     }
   }
 
-  tagCrossSyllable(eChars, aChars, pairs, tags);
-  tagAbbreviation(expectedBase, actualBase, tags);
-
-  // 연음/구개음화가 잡혔으면 그 결과로 생긴 '받침' 태그는 중복이라 뺀다
-  if (tags.has('연음') || tags.has('구개음화')) tags.delete('받침');
+  if (lang === 'ko') {
+    tagCrossSyllable(eChars, aChars, pairs, tags);
+    tagAbbreviation(expectedBase, actualBase, tags);
+    // 연음/구개음화가 잡혔으면 그 결과로 생긴 '받침' 태그는 중복이라 뺀다
+    if (tags.has('연음') || tags.has('구개음화')) tags.delete('받침');
+  } else {
+    tagSentence(expectedBase, actualBase, tags as Set<EnErrorTag>);
+  }
 
   if (spacingDiff) tags.add('띄어쓰기');
   if (punctDiff && strictness === 'full') tags.add('문장부호');
 
-  const dist = jamoDistance(e, a);
-  const maxLen = Math.max(toJamo(e).length, toJamo(a).length, 1);
+  const dist = ops_.distance(e, a);
+  const maxLen = Math.max(ops_.distanceLen(e), ops_.distanceLen(a), 1);
   const similarity = Math.max(0, 1 - dist / maxLen);
 
   const isExact = e === a;
@@ -447,6 +554,11 @@ export function grade(expectedRaw: string, actualRaw: string, opts: GradeOptions
     tags.clear();
     if (spacingDiff && strictness === 'char') tags.add('띄어쓰기');
     if (punctDiff && strictness !== 'full') tags.add('문장부호');
+    // 철자가 같은데 큰 글자만 다르면 «맞았지만 대문자를 살펴보라»고 알려 준다.
+    if (lang === 'en' && strictness !== 'full'
+        && stripPunct(expectedBase, lang) !== stripPunct(actualBase, lang)) {
+      tags.add('대문자');
+    }
   } else if (allowPartial && wrongCount === 1 && extras.length === 0 && dist <= 1) {
     verdict = 'partial';
   } else {

@@ -6,10 +6,18 @@ import type { View } from './view';
 
 export function reportView(): View {
   const el = h('div', { class: 'view' });
+  // 🔴 「띄어쓰기」·「문장부호」는 두 과목에 같은 이름으로 있지만 «가르치는 내용»이 다르다.
+  //    한 표에 섞으면 교사는 무엇을 더 가르쳐야 할지 읽을 수 없다. 과목이 둘이면 나눠 본다.
+  //    처음 열 때는 «기록이 있는 쪽»을 편다 — 영어만 푼 아이에게 「기록이 없어요」를 보이면 안 된다.
+  let subject: 'ko' | 'en' | null = null;
 
   function render(): void {
     el.replaceChildren();
-    const attempts = getAttempts();
+    const all = getAttempts();
+    const hasEn = all.some((a) => a.lang === 'en');
+    const hasKo = all.some((a) => (a.lang ?? 'ko') === 'ko');
+    if (subject === null) subject = hasKo ? 'ko' : 'en';
+    const attempts = hasEn && hasKo ? all.filter((a) => (a.lang ?? 'ko') === subject) : all;
 
     if (!attempts.length) {
       el.append(
@@ -53,6 +61,19 @@ export function reportView(): View {
         'section',
         { class: 'card' },
         h('h1', {}, '내 기록'),
+        hasEn && hasKo
+          ? h(
+              'div',
+              { class: 'subject-tabs', role: 'tablist', 'aria-label': '과목' },
+              ...(['ko', 'en'] as const).map((k) =>
+                h('button', {
+                  class: `subject-tab${subject === k ? ' on' : ''}`,
+                  type: 'button', role: 'tab', 'aria-selected': String(subject === k),
+                  onclick: () => { if (subject !== k) { subject = k; render(); } },
+                }, k === 'ko' ? '국어' : '영어'),
+              ),
+            )
+          : null,
         h('p', { class: 'muted' }, `${attempts.length}번 했고, 모두 ${totalItems}문항 중 ${totalCorrect}개를 맞혔어요.`),
       ),
     );

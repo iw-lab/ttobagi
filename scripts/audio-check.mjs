@@ -20,6 +20,11 @@ const check = (ok, name, detail) => {
 
 const browser = await puppeteer.launch({
   headless: false,
+  // 🔴 pipe: true 가 없으면 이 스크립트가 예외로 끝날 때 크롬이 살아남는다.
+  //    2026-09-10 실측: 화면 검사를 몇 번 돌린 뒤 좀비 크롬 34개가 쌓였고,
+  //    그것이 웹 브릿지를 굶겨 「입력창 없음」 연쇄 실패를 냈다 — 원인이 브릿지 밖에 있어
+  //    로그만 보면 영영 못 찾는다. 부모가 죽으면 파이프가 끊겨 크롬도 같이 죽는다.
+  pipe: true,
   args: ['--window-size=1280,900', '--use-fake-ui-for-media-stream'],
 });
 

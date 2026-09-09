@@ -62,6 +62,14 @@ export function listEditView(params: Params): View {
 
   const titleInput = h('input', { class: 'input', type: 'text', value: draft.title, placeholder: '예: 2학년 1학기 받아쓰기' });
   const levelInput = h('input', { class: 'input', type: 'text', value: draft.level, placeholder: '예: 3급' });
+  // 🔴 과목은 «채점 규칙»을 고른다. 영어 급수표를 국어로 두면 자모 규칙으로 채점되고,
+  //    읽어 줄 때도 한국어 목소리가 영어를 읽는다.
+  const subjectInput = h('select', {
+    class: 'input',
+    onchange: (e: Event) => { draft.lang = (e.target as HTMLSelectElement).value as 'ko' | 'en'; },
+  }, ...(['ko', 'en'] as const).map((k) =>
+    h('option', { value: k, selected: (draft.lang ?? 'ko') === k }, k === 'ko' ? '국어' : '영어'),
+  )) as HTMLSelectElement;
   const bulk = h('textarea', {
     class: 'input textarea',
     rows: 10,
@@ -135,7 +143,7 @@ export function listEditView(params: Params): View {
 
     playBtn.onclick = async () => {
       stopAudio();
-      const how = await playItem(item.id, item.text, { rate: 0.9, times: 1, audio: item.audio });
+      const how = await playItem(item.id, item.text, { rate: 0.9, times: 1, audio: item.audio, lang: draft.lang === 'en' ? 'en' : 'ko' });
       if (how === 'none') toast('읽어 줄 목소리가 없어요. 녹음을 해 보세요.', 'warn');
     };
 
@@ -233,6 +241,7 @@ export function listEditView(params: Params): View {
         : null,
       field('제목', titleInput),
       field('급수', levelInput, '학교에서 쓰는 표기를 그대로 적으세요.'),
+      field('과목', subjectInput, '영어를 고르면 철자로 채점하고, 손글씨 칸이 네 줄로 나옵니다.'),
       field('문항 붙여넣기', bulk, '한 줄에 한 문항. 앞의 번호(1. 2. …)는 알아서 지웁니다.'),
       h(
         'div',

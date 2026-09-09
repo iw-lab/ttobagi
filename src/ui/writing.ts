@@ -1,15 +1,23 @@
 /**
- * 손글씨 칸 — 국어 공책처럼 네모 칸에 쓴다.
+ * 손글씨 칸 — 국어는 공책처럼 네모 칸에, 영어는 «4선지»에 쓴다.
+ *
+ * 🔴 영어를 네모 칸에 쓰게 하면 안 된다. 영어 손글씨에서 배우는 것은 «글자가 어느 선까지
+ * 올라가고 내려가는가»(b 는 위로, p 는 아래로)인데, 칸은 그 정보를 아예 안 준다.
+ * 학교에서 영어 공책이 4선지인 이유가 그것이다.
  *
  * 손가락·펜·마우스를 **한 파이프라인**으로 받는다. 학교 전자칠판(적외선 방식)은 펜을 손가락으로
  * 보고하는 경우가 있어서 «펜일 때만 그린다»고 못 박으면 그 교실에서 통째로 먹통이 된다.
  * 그래서 펜 입력이 실제로 관측된 기기에서만 손바닥 무시를 켠다.
  */
 
+/** 'grid' = 국어 원고지 칸 · 'lines' = 영어 4선지 */
+export type PadGuide = 'grid' | 'lines';
+
 export interface WritingPadOptions {
-  /** 칸 개수 — 문항 글자 수에 맞춘다 */
+  /** 칸 개수 — 문항 글자 수에 맞춘다 ('lines' 일 때는 쓰지 않는다) */
   cells: number;
   height?: number;
+  guide?: PadGuide;
   onChange?: () => void;
 }
 
@@ -27,6 +35,7 @@ export class WritingPad {
   private penSeen = false;
   private activePointer: number | null = null;
   private cells: number;
+  private guide: PadGuide;
   private cssWidth = 0;
   private cssHeight = 0;
   private onChange?: () => void;
@@ -34,6 +43,7 @@ export class WritingPad {
 
   constructor(opts: WritingPadOptions) {
     this.cells = Math.max(1, Math.min(24, opts.cells));
+    this.guide = opts.guide ?? 'grid';
     this.onChange = opts.onChange;
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'pad-canvas';
@@ -115,7 +125,29 @@ export class WritingPad {
     this.draw();
   }
 
+  /** 영어 4선지 — 위선·가운데 점선·밑선(진하게)·내림선 */
+  private drawLines(): void {
+    const { ctx, cssWidth: w, cssHeight: hgt } = this;
+    ctx.save();
+    ctx.lineWidth = 1;
+    const at = (r: number) => Math.round(hgt * r) + 0.5;
+    const line = (y: number, color: string, dash: number[] = []) => {
+      ctx.strokeStyle = color;
+      ctx.setLineDash(dash);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    };
+    line(at(0.18), 'rgba(90,120,170,.30)');            // 위선 — b·h·l 이 닿는 곳
+    line(at(0.46), 'rgba(90,120,170,.28)', [6, 6]);    // 가운데 점선 — a·e·o 의 키
+    line(at(0.74), 'rgba(70,100,160,.70)');            // 밑선 — 글자가 앉는 줄
+    line(at(0.95), 'rgba(90,120,170,.30)');            // 내림선 — g·p·y 가 내려가는 곳
+    ctx.restore();
+  }
+
   private drawGrid(): void {
+    if (this.guide === 'lines') { this.drawLines(); return; }
     const { ctx, cssWidth: w, cssHeight: hgt, cells } = this;
     ctx.save();
     ctx.strokeStyle = 'rgba(90,120,170,.35)';

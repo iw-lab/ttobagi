@@ -4,3 +4,5 @@ qa-shots/
 qa-report.json
 .DS_Store
 .audio-tmp/
+scripts/en/.cache/
+.audio-tmp-en/

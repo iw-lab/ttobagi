@@ -13,6 +13,7 @@
     "qa": "APP_BASE=/ vite build && node scripts/visual-qa.mjs",
     "deploy": "APP_BASE=/ vite build && wrangler pages deploy dist --project-name ttobagi --branch main --commit-dirty=true",
     "qa:sound": "APP_BASE=/ vite build && node scripts/audio-check.mjs",
+    "audio:en": "node scripts/en/build-audio.mjs --jobs 8 && node scripts/en/check-audio.mjs",
     "audio": "node scripts/build-audio.mjs"
   },
   "devDependencies": {

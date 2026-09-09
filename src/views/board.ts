@@ -56,6 +56,7 @@ export function boardView(params: Params): View {
     abort = new AbortController();
     const item = list!.items[idx];
     const how = await playItem(item.id, item.text, {
+      lang: list!.lang === 'en' ? 'en' : 'ko',
       audio: item.audio,
       rate: settings.rate,
       times: settings.repeat,

@@ -1,4 +1,6 @@
-import type { ErrorTag, Strictness, Verdict } from './grade';
+import type { ErrorTag, Lang, Strictness, Verdict } from './grade';
+
+export type { Lang } from './grade';
 
 /** 문항 하나 — 낱말·어절·문장 무엇이든 된다 */
 export interface Item {
@@ -20,6 +22,11 @@ export interface WordList {
   title: string;
   /** 자유 문자열 — "2학년 1학기 3급" 처럼 학교마다 다르게 쓴다 */
   level: string;
+  /**
+   * 어느 과목인가. 없으면 국어다 — 사용자 기기에 이미 저장된 급수표에는 이 칸이 없고,
+   * 그것들은 전부 국어다. 🔴 여기서 기본값을 바꾸면 교실의 옛 급수표가 그날로 영어로 채점된다.
+   */
+  lang?: Lang;
   items: Item[];
   createdAt: number;
   updatedAt: number;
@@ -105,6 +112,11 @@ export interface Attempt {
   id: string;
   listId: string;
   listTitle: string;
+  /**
+   * 응시 «그 순간»의 과목. 급수표가 지워져도 지난 결과를 같은 규칙으로 다시 볼 수 있어야 한다.
+   * 없으면 국어 — 이 칸이 생기기 전의 기록은 전부 국어다.
+   */
+  lang?: Lang;
   /** 학생 이름 대신 쓰는 표시 이름 — 번호·별명 등 학교가 정한다 */
   who: string;
   mode: RunMode;

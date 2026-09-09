@@ -562,3 +562,64 @@ p:last-child { margin-bottom: 0; }
   min-height: 44px; cursor: pointer;
 }
 .field-inline input[type='checkbox'] { width: 22px; height: 22px; }
+
+/* ── 과목 고르개 (국어 / 영어) ── */
+.subject-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 12px;
+  padding: 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  width: fit-content;
+}
+.subject-tab {
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  padding: 8px 22px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--muted);
+  cursor: pointer;
+  min-height: 40px;
+}
+.subject-tab.on {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+.subject-tab:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+
+/* ── 인쇄물 영어 4선지 ── */
+.sheet-lines {
+  position: relative;
+  height: 44px;
+  margin: 6px 0 22px;   /* 내림선(-12px)이 다음 줄의 위선에 닿지 않게 */
+  border-bottom: 1.4px solid #4a6ea8;   /* 밑선 — 글자가 앉는 줄 */
+  border-top: 1px solid #9db4d6;        /* 위선 */
+  display: flex;
+  align-items: flex-end;
+  padding-bottom: 1px;
+}
+/* 가운데 점선 — a·e·o 의 키 */
+.sheet-lines::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: 46%;
+  border-top: 1px dashed #9db4d6;
+}
+/* 내림선 — g·p·y 가 내려가는 곳 */
+.sheet-lines::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: -12px;
+  border-top: 1px solid #c3d1e6;
+}
+.sheet-lines .trace-char {
+  font-size: 1.5rem;
+  letter-spacing: 0.06em;
+  color: #b9c6da;
+  line-height: 1;
+}

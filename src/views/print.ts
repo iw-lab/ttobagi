@@ -30,6 +30,22 @@ function cells(text: string, mode: 'empty' | 'trace' | 'filled'): HTMLElement {
   );
 }
 
+/**
+ * 영어 4선지 한 줄. 🔴 영어를 한 글자씩 네모 칸에 넣으면 안 된다 —
+ * 글자마다 폭이 다르고(i 와 m), 위아래로 뻗는 정도가 다른 것이 배울 내용이다.
+ */
+function lineStrip(text: string, mode: 'empty' | 'trace'): HTMLElement {
+  return h(
+    'div',
+    { class: 'sheet-lines' },
+    mode === 'trace' ? h('span', { class: 'trace-char' }, text) : null,
+  );
+}
+
+function writingRow(text: string, mode: 'empty' | 'trace', isEn: boolean): HTMLElement {
+  return isEn ? lineStrip(text, mode) : cells(text, mode);
+}
+
 export function printView(params: Params): View {
   const list = getList(params.id);
   if (!list) {
@@ -39,6 +55,7 @@ export function printView(params: Params): View {
   }
 
   let sheet: Sheet = 'test';
+  const isEn = list.lang === 'en';
   const paper = h('div', { class: 'paper' });
 
   function wrongItems(): string[] {
@@ -89,8 +106,10 @@ export function printView(params: Params): View {
           h(
             'li',
             { class: 'paper-item' },
-            sheet === 'trace' ? cells(t, 'trace') : cells(t, 'empty'),
-            sheet === 'wrong' ? h('div', { class: 'paper-repeat' }, cells(t, 'empty'), cells(t, 'empty')) : null,
+            writingRow(t, sheet === 'trace' ? 'trace' : 'empty', isEn),
+            sheet === 'wrong'
+              ? h('div', { class: 'paper-repeat' }, writingRow(t, 'empty', isEn), writingRow(t, 'empty', isEn))
+              : null,
           ),
         ),
       ),

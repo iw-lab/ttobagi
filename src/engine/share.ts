@@ -55,6 +55,8 @@ interface ListPayload {
   v: string;
   i: string[];
   p?: (string | undefined)[];
+  /** 과목. 없으면 국어 — 이 칸이 생기기 전에 만들어진 링크는 전부 국어다. */
+  g?: 'ko' | 'en';
 }
 
 /** 링크에 담기는 결과 요약 */
@@ -112,6 +114,8 @@ export async function encodeList(list: WordList): Promise<string> {
     i: list.items.map((i) => i.text),
   };
   if (points.some(Boolean)) payload.p = points;
+  // 국어는 기본값이라 싣지 않는다 — 링크를 한 글자라도 짧게 둔다.
+  if (list.lang === 'en') payload.g = 'en';
   return encode(payload);
 }
 
@@ -121,6 +125,7 @@ export function payloadToList(payload: ListPayload): WordList {
     id: newId('l'),
     title: payload.n || '받아온 급수표',
     level: payload.v || '',
+    lang: payload.g === 'en' ? 'en' : 'ko',
     items: payload.i.map((text, idx) => ({
       id: newId('i'),
       text,

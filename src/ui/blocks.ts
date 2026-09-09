@@ -7,6 +7,27 @@
  */
 
 import { compose, decompose, TENSE_PAIRS, VOWEL_CONFUSIONS } from '../engine/hangul';
+import type { Lang } from '../engine/grade';
+
+/**
+ * 영어에서 «찍어서 맞히지 못하게» 섞을 글자.
+ * 모양이 닮은 짝(b/d, p/q)과 소리가 닮은 짝(c/k, s/z)을 함께 넣는다 —
+ * 저학년이 실제로 헷갈리는 것이 그 둘이다.
+ */
+const EN_CONFUSE: Record<string, string> = {
+  a: 'eo', b: 'dp', c: 'ke', d: 'bq', e: 'ac', f: 'tl', g: 'qy', h: 'nb',
+  i: 'lj', j: 'ig', k: 'cx', l: 'if', m: 'nw', n: 'mh', o: 'ac', p: 'qb',
+  q: 'pg', r: 'nv', s: 'zc', t: 'fl', u: 'vn', v: 'uw', w: 'mv', x: 'ks',
+  y: 'vg', z: 's',
+};
+
+function variantsOfEn(ch: string): string[] {
+  const lower = ch.toLowerCase();
+  const near = EN_CONFUSE[lower];
+  if (!near) return [];
+  const upper = ch !== lower; // 큰 글자면 방해 글자도 큰 글자로 — 대소문자 섞기는 다른 공부다
+  return [...near].map((c) => (upper ? c.toUpperCase() : c));
+}
 
 function variantsOf(ch: string): string[] {
   const s = decompose(ch);
@@ -56,10 +77,11 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export function buildTiles(answer: string, extra = 4): string[] {
+export function buildTiles(answer: string, extra = 4, lang: Lang = 'ko'): string[] {
   const chars = [...answer].filter((c) => c.trim() !== '');
   const pool = new Set<string>();
-  for (const c of chars) for (const v of variantsOf(c)) pool.add(v);
+  const variants = lang === 'en' ? variantsOfEn : variantsOf;
+  for (const c of chars) for (const v of variants(c)) pool.add(v);
   for (const c of chars) pool.delete(c);
   const distractors = shuffle([...pool]).slice(0, Math.max(0, extra));
   return shuffle([...chars, ...distractors]);
@@ -67,6 +89,7 @@ export function buildTiles(answer: string, extra = 4): string[] {
 
 export interface BlockInputOptions {
   answer: string;
+  lang?: Lang;
   /** 띄어쓰기 블록을 줄지 — 문장 문항에서만 의미가 있다 */
   withSpace?: boolean;
   onChange?: (value: string) => void;
@@ -88,7 +111,9 @@ export class BlockInput {
     this.tray = document.createElement('div');
     this.tray.className = 'blocks-tray';
 
-    const tiles = buildTiles(opts.answer);
+    // 영어는 낱말이 길어 글자 수가 많다 — 방해 글자를 늘리면 화면이 감당을 못 한다.
+    const lang = opts.lang ?? 'ko';
+    const tiles = buildTiles(opts.answer, lang === 'en' ? 6 : 4, lang);
     const withSpace = opts.withSpace ?? /\s/.test(opts.answer);
     for (const t of tiles) this.tray.appendChild(this.makeTile(t));
     if (withSpace) this.tray.appendChild(this.makeTile(' ', '␣ 띄기'));

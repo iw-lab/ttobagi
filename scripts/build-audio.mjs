@@ -25,7 +25,10 @@ const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : fallback;
 };
-const SID = Number(arg('sid', 3));
+// 🔴 화자는 0(소리책 「화자 1」)이다. 2026-09-08 에 1,100개를 이 목소리로 다시 구웠는데
+//    이 기본값만 3으로 남아 있었다 — 나중에 문항을 더해 구우면 «그것만 딴 목소리»가 된다.
+//    배포된 음원과 기본값이 어긋나 있으면 그건 기본값이 틀린 것이다.
+const SID = Number(arg('sid', 0));
 const SPEED = Number(arg('speed', 0.88));
 const ONLY = arg('only', null);
 const FORCE = process.argv.includes('--force');

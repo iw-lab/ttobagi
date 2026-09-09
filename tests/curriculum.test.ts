@@ -33,13 +33,16 @@ describe('학년별 급수표', () => {
         expect(t.length, `${c.id}: ${t}`).toBeGreaterThan(0);
         expect(t, `${c.id}: 두 칸 띄기`).not.toMatch(/ {2}/);
         // 받아쓰기 답이므로 한글·공백·문장부호만 있어야 한다(숫자·날짜 표기는 예외로 허용)
-        expect(t, `${c.id}: 쓸 수 없는 글자`).toMatch(/^[가-힣0-9\s.,!?:;'"·…—()『』\-]+$/);
+        // 따옴표 “ ” ‘ ’ 는 인용 급수가 쓰는 정상 부호다(앱의 PUNCT_RE 도 이미 처리한다)
+        expect(t, `${c.id}: 쓸 수 없는 글자`).toMatch(/^[가-힣0-9\s.,!?:;'"“”‘’·…—()「」『』\-]+$/);
       }
       expect(new Set(c.items).size, `${c.id}: 같은 문항 중복`).toBe(c.items.length);
     }
   });
 
-  it('모든 학기가 10급까지 채워져 있다', () => {
+  it('모든 학기가 1급부터 구멍 없이 이어진다', () => {
+    // 급수가 11, 12, 14… 처럼 건너뛰면 아이는 «없는 급»을 찾게 된다.
+    // 그래서 개수가 아니라 «1부터 연속인가»를 본다(2026-09-09 확대 때 10급 고정을 풀었다).
     const groups = new Map<string, number[]>();
     for (const c of CURRICULUM) {
       const k = `${c.grade}-${c.semester}`;
@@ -47,7 +50,9 @@ describe('학년별 급수표', () => {
     }
     expect(groups.size).toBe(11); // 1학년 2학기부터 6학년 2학기까지
     for (const [k, levels] of groups) {
-      expect(levels.sort((a, b) => a - b), k).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+      const sorted = [...levels].sort((a, b) => a - b);
+      expect(sorted.length, `${k}: 급수가 10개보다 적다`).toBeGreaterThanOrEqual(10);
+      expect(sorted, `${k}: 급수 번호에 구멍`).toEqual(sorted.map((_, i) => i + 1));
     }
   });
 

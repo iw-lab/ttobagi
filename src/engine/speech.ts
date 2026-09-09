@@ -46,10 +46,22 @@ export function loadVoices(timeoutMs = 1500): Promise<SpeechSynthesisVoice[]> {
   });
 }
 
+/**
+ * 언어 코드의 첫 조각만 떼어 낸다 — 「ko-KR」·「ko_KR」·「ko」 는 모두 ko 다.
+ *
+ * 🔴 `startsWith('ko')` 로 견주면 안 된다. 인도 **콘칸어**가 `kok-IN` 이라
+ * 한국어 목소리 목록에 딸려 들어오고, 받아쓰기를 콘칸어 목소리로 읽는다.
+ * (2026-09-10 사용자 기기에서 「코카니어 인도」 2개가 한국어로 잡혀 있었다.)
+ * 영어도 마찬가지다 — `en` 은 중세영어 `enm` 을 물고 온다.
+ */
+export function baseLang(tag: string): string {
+  return tag.toLowerCase().split(/[-_]/)[0];
+}
+
 /** 어느 언어의 목소리인가 — 이름을 박아 두면 기기가 바뀔 때 조용히 깨진다. 반드시 lang 으로 찾는다. */
 export function voicesFor(lang: SpeechLang): SpeechSynthesisVoice[] {
-  const prefix = lang === 'en' ? 'en' : 'ko';
-  return cachedVoices.filter((v) => v.lang.toLowerCase().startsWith(prefix));
+  const want = lang === 'en' ? 'en' : 'ko';
+  return cachedVoices.filter((v) => baseLang(v.lang) === want);
 }
 
 export function koreanVoices(): SpeechSynthesisVoice[] {

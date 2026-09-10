@@ -33,7 +33,10 @@ for (const [id, items] of Object.entries(verified)) {
   const re = new RegExp(`(id: '${id}',[\\s\\S]*?)items: \\[[\\s\\S]*?\\],`, 'm');
   const m = src.match(re);
   if (!m) { skipped.push(`${id} (못 찾음)`); continue; }
-  let head = m[1].replace(/소리가 나는 낱말'/g, "소리가 나는 문장'").replace(/낱말'/g, "문장'");
+  // 🔴 «제목»만 바꾼다. point 까지 함께 치환하면 학습 초점 이름이 망가진다
+  //    (긴낱말 → 긴문장 으로 바뀌어 성적표의 초점별 묶음이 어긋났다 — 2026-09-10).
+  //    초점은 여전히 「긴 낱말 철자」다. 그것을 문장 안에서 익히게 된 것뿐이다.
+  let head = m[1].replace(/(title: '[^']*)낱말'/, "$1낱말이 든 문장'");
   const body = `items: [${items.map((t) => `'${esc(t)}'`).join(', ')}],`;
   src = src.replace(re, head + body);
   patched++;

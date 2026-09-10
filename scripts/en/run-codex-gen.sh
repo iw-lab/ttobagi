@@ -11,7 +11,11 @@ BRIDGE="$HOME/.claude/bin/codex-validate.sh"
 ok=$(cat <<'JS'
 let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
   try{const d=JSON.parse(s);const k=Object.keys(d)[0];
-    process.exit(Array.isArray(d[k])&&d[k].length>=8?0:1);}catch{process.exit(1);}
+    // 🔴 프롬프트의 «출력 예시»를 그대로 돌려주는 일이 있다("문장1","문장2"…).
+    //    JSON 으로는 멀쩡해서 그냥 통과한다 — 한글이 섞였으면 답이 아니다(2026-09-10).
+    const v=d[k];
+    const real=Array.isArray(v)&&v.length>=1&&v.every(t=>typeof t==="string"&&!/[가-힣]/.test(t));
+    process.exit(real?0:1);}catch{process.exit(1);}
 });
 JS
 )
@@ -35,7 +39,9 @@ let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
   const lines=s.split(/\r?\n/).filter(l=>l.trim().startsWith("{"));
   for(let i=lines.length-1;i>=0;i--){
     try{const d=JSON.parse(lines[i].trim());const k=Object.keys(d)[0];
-      if(Array.isArray(d[k])&&d[k].length>=8){process.stdout.write(lines[i].trim());return;}}catch{}
+      const v=d[k];
+      if(Array.isArray(v)&&v.length>=1&&v.every(t=>typeof t==="string"&&!/[가-힣]/.test(t))){
+        process.stdout.write(lines[i].trim());return;}}catch{}
   }
   process.stdout.write("");});')
   if [ -n "$json" ] && printf '%s' "$json" | node -e "$ok" 2>/dev/null; then

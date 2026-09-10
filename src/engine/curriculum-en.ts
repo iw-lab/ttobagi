@@ -667,23 +667,23 @@ export const CURRICULUM_EN: LevelSheet[] = [
   },
   {
     id: 'e5-1-16', subject: 'en', grade: 5, semester: 1, level: 16,
-    title: 'sports · ou 와 ow 소리가 나는 문장', point: 'ou·ow',
+    title: 'sports · ou 와 ow 소리가 나는 낱말이 든 문장', point: 'ou·ow',
     items: ['The cow eats grass near the field.', 'How do you play this game?', 'We can start the race now.', 'Please put the ball down.', 'There is a pool in our town.', 'Are these brown shoes yours?', 'This flower is for you.', 'Take a shower after the game.', 'A big crowd is watching the race.', 'Can you run around the tree?'],
   },
   {
     id: 'e5-1-17', subject: 'en', grade: 5, semester: 1, level: 17,
-    title: 'toys · oi 와 oy 소리가 나는 문장', point: 'oi·oy',
-    items: ['Where is my little toy car?', 'What a funny hat that boy has!', 'She jumped for joy at the news.', 'Did you enjoy your lunch today?', 'The king wears a royal coat.', 'My dog is a very loyal friend.', 'Look at the oyster under that rock.', 'A fire can destroy many trees.', 'Please do not annoy your little sister.', 'We saw a cowboy on his horse.'],
+    title: 'toys · oi 와 oy 소리가 나는 낱말이 든 문장', point: 'oi·oy',
+    items: ['Where is my little toy car?', 'What a funny hat that boy has!', 'She jumped for joy at the news.', 'Did you enjoy your lunch today?', 'The king wears a royal coat.', 'My dog is a very loyal friend.', 'A fire can destroy many trees.', 'We saw a cowboy on his horse.', 'The boy can ride a bike.', 'I enjoy playing with my dog.'],
   },
   {
     id: 'e5-1-18', subject: 'en', grade: 5, semester: 1, level: 18,
-    title: 'friends · 자음을 겹쳐 쓰는 문장', point: '겹자음규칙',
+    title: 'friends · 자음을 겹쳐 쓰는 낱말이 든 문장', point: '겹자음규칙',
     items: ['Please write a letter to your friend.', 'Do you have a tennis ball?', 'We had fish for dinner.', 'My father wants some coffee.', 'Who won the soccer game?', 'A puppy is under the chair.', 'How small that kitten is!', 'Stop running in the classroom.', 'Swimming makes me happy.', 'Why are you sitting on my bag?'],
   },
   {
     id: 'e5-1-19', subject: 'en', grade: 5, semester: 1, level: 19,
-    title: 'hobbies · -le 과 -el 로 끝나는 문장', point: '-le끝',
-    items: ['Can you help me with this puzzle?', 'I cycle to school with my friends.', 'A blue marble is under my desk.', 'Let\'s doodle a cat on this page.', 'My brother can juggle three balls.', 'Where did you put the paddle?', 'The game starts when I blow my whistle.', 'Be careful with that needle!', 'Draw a big circle around the star.', 'There is a candle on the cake.'],
+    title: 'hobbies · -le 과 -el 로 끝나는 낱말이 든 문장', point: '-le끝',
+    items: ['Can you help me with this puzzle?', 'I cycle to school with my friends.', 'A blue marble is under my desk.', 'The game starts when I blow my whistle.', 'Draw a big circle around the star.', 'There is a candle on the cake.', 'This puzzle is fun to do.', 'We cycle in the park after school.', 'Put the red marble in the box.', 'We sit in a circle and sing.'],
   },
   {
     id: 'e5-1-20', subject: 'en', grade: 5, semester: 1, level: 20,
@@ -743,7 +743,7 @@ export const CURRICULUM_EN: LevelSheet[] = [
   {
     id: 'e5-2-02', subject: 'en', grade: 5, semester: 2, level: 2,
     title: 'my town · 소리 나지 않는 gh 가 든 낱말', point: '묵음gh',
-    items: ['light', 'night', 'right', 'bright', 'sight', 'flight', 'straight', 'traffic', 'bought', 'brought'],
+    items: ['light', 'night', 'right', 'bright', 'sight', 'flight', 'straight', 'daughter', 'bought', 'brought'],
   },
   {
     id: 'e5-2-03', subject: 'en', grade: 5, semester: 2, level: 3,
@@ -807,27 +807,27 @@ export const CURRICULUM_EN: LevelSheet[] = [
   },
   {
     id: 'e5-2-15', subject: 'en', grade: 5, semester: 2, level: 15,
-    title: 'hobbies · y 가 i 로 바뀌는 문장', point: 'y→ies',
+    title: 'hobbies · y 가 i 로 바뀌는 낱말이 든 문장', point: 'y→ies',
     items: ['Please read these stories to me.', 'We play fun games at parties.', 'What are your favorite hobbies?', 'School activities start after lunch.', 'My sister writes in her diaries.', 'Many countries have cold winters.', 'Are these cities near the sea?', 'Big families need big tables.', 'The babies are sleeping now.', 'Look at the puppies under the tree!'],
   },
   {
     id: 'e5-2-16', subject: 'en', grade: 5, semester: 2, level: 16,
-    title: 'music · 소리 나지 않는 gh 가 든 문장', point: '묵음gh',
-    items: ['We can sing a song tonight.', 'It might rain after lunch.', 'These shoes are too tight.', 'I let out a long sigh.', 'A small bug is on my thigh.', 'Please do not fight with your sister.', 'What is the height of that tree?', 'There are eight eggs in the box.', 'Do we have enough milk?', 'Though the game is hard, she enjoys it.'],
+    title: 'music · 소리 나지 않는 gh 가 든 낱말이 든 문장', point: '묵음gh',
+    items: ['We can sing a song tonight.', 'It might rain after lunch.', 'These shoes are too tight.', 'I let out a long sigh.', 'Please do not fight with your sister.', 'There are eight eggs in the box.', 'I might read a book tonight.', 'Eight birds sat on the fence.', 'She gave a soft sigh and smiled.', 'The lid on this jar is too tight.'],
   },
   {
     id: 'e5-2-17', subject: 'en', grade: 5, semester: 2, level: 17,
-    title: 'animals · 소리 나지 않는 t 와 h 가 든 문장', point: '묵음th',
-    items: ['A rhino eats grass by the river.', 'Your white shirt looks very clean.', 'Look at that whale in the sea!', 'We need wheat to make bread.', 'The front wheel will not turn.', 'She held a whip beside her horse.', 'Which animal has a long neck?', 'Where did my little dog go?', 'Tell me what you want for lunch.', 'When it rains, we play inside.'],
+    title: 'animals · 소리 나지 않는 t 와 h 가 든 낱말이 든 문장', point: '묵음th',
+    items: ['A rhino eats grass by the river.', 'Your white shirt looks very clean.', 'Look at that whale in the sea!', 'The front wheel will not turn.', 'Which animal has a long neck?', 'Where did my little dog go?', 'Tell me what you want for lunch.', 'When it rains, we play inside.', 'The white cat is on the bed.', 'A whale can swim very fast.'],
   },
   {
     id: 'e5-2-18', subject: 'en', grade: 5, semester: 2, level: 18,
-    title: 'home · it\'s·don\'t 처럼 줄여 쓴 문장', point: '축약형',
+    title: 'home · it\'s·don\'t 처럼 줄여 쓴 낱말', point: '축약형',
     items: ['That\'s my bag under the desk.', 'What\'s for dinner this evening?', 'There\'s a bird in the tree.', 'Let\'s wash our hands before lunch.', 'I\'ll help you carry this box.', 'I think you\'ll like this game.', 'After school, he\'ll ride his bike.', 'At home, she\'ll read her new book.', 'If we hurry, we\'ll catch the bus.', 'When the bell rings, they\'ll stop running.'],
   },
   {
     id: 'e5-2-19', subject: 'en', grade: 5, semester: 2, level: 19,
-    title: 'food · 철자를 자주 틀리는 문장', point: '자주틀리는말',
+    title: 'food · 철자를 자주 틀리는 낱말이 든 문장', point: '자주틀리는말',
     items: ['I eat bread for breakfast.', 'Would you like some juice?', 'There is fruit on the table.', 'Please put some sugar in my tea.', 'This cheese looks like a star.', 'Can you cut the tomato in half?', 'A hot potato fell off my plate.', 'The onion makes my eyes hurt.', 'We need butter to make cookies.', 'Your rabbit is eating a carrot.'],
   },
   {
@@ -942,13 +942,13 @@ export const CURRICULUM_EN: LevelSheet[] = [
   },
   {
     id: 'e6-1-15', subject: 'en', grade: 6, semester: 1, level: 15,
-    title: 'food · -tion 과 -sion 으로 끝나는 문장', point: '-tion',
-    items: ['This shop has a good selection of fruit.', 'Read the instruction before you cook.', 'Your cake is a beautiful creation.', 'Egg production is high on this farm.', 'We ate rice cakes at the celebration.', 'Food preparation takes time.', 'Her collection of cups is on the shelf.', 'He cooked the fish to perfection.', 'She smiled with satisfaction after lunch.', 'Is soup an option for dinner?'],
+    title: 'food · -tion 과 -sion 으로 끝나는 낱말이 든 문장', point: '-tion',
+    items: ['This shop has a good selection of fruit.', 'Your cake is a beautiful creation.', 'We ate rice cakes at the celebration.', 'Food preparation takes time.', 'Her collection of cups is on the shelf.', 'Is soup an option for dinner?', 'Our celebration starts with a big cake.', 'This cake is my own creation.', 'We have a small collection of bowls.', 'Rice is a good option for lunch.'],
   },
   {
     id: 'e6-1-16', subject: 'en', grade: 6, semester: 1, level: 16,
-    title: 'my town · un- 과 re- 가 붙은 문장', point: '접두사',
-    items: ['I am unable to find the park.', 'The map of our town is unclear.', 'How unlucky we were to miss the bus!', 'Our team looks unready for the game.', 'Why is that shop owner so unfriendly?', 'That small mistake seems unimportant now.', 'These new shoes feel uncomfortable on my feet.', 'Let us rebuild the old town bridge.', 'Can you remake this cake for the party?', 'Please restart the movie after lunch.'],
+    title: 'my town · un- 과 re- 가 붙은 낱말이 든 문장', point: '접두사',
+    items: ['I am unable to find the park.', 'The map of our town is unclear.', 'How unlucky we were to miss the bus!', 'Why is that shop owner so unfriendly?', 'That small mistake seems unimportant now.', 'These new shoes feel uncomfortable on my feet.', 'Let us rebuild the old town bridge.', 'Can you remake this cake for the party?', 'Please restart the movie after lunch.', 'We can rebuild the small town park.'],
   },
   {
     id: 'e6-1-17', subject: 'en', grade: 6, semester: 1, level: 17,
@@ -957,13 +957,13 @@ export const CURRICULUM_EN: LevelSheet[] = [
   },
   {
     id: 'e6-1-18', subject: 'en', grade: 6, semester: 1, level: 18,
-    title: 'colors · 음절이 여럿인 긴 문장', point: '긴문장',
-    items: ['The yellow bus stops here.', 'Would you like an orange?', 'She wore a purple hat yesterday.', 'My silver watch is on the desk.', 'We found a golden key under the bed.', 'These colorful flowers smell so good.', 'Please turn off that bright light.', 'Can you see the rainbow above us?', 'I drew a violet star at school.', 'Look at the sun shining on the water.'],
+    title: 'colors · 음절이 여럿인 긴 낱말이 든 문장', point: '긴낱말',
+    items: ['The yellow bus stops here.', 'Would you like an orange?', 'She wore a purple hat yesterday.', 'My silver watch is on the desk.', 'We found a golden key under the bed.', 'These colorful flowers smell so good.', 'Can you see the rainbow above us?', 'Look at the sun shining on the water.', 'My purple crayon rolled off the table.', 'The golden leaves are shining today.'],
   },
   {
     id: 'e6-1-19', subject: 'en', grade: 6, semester: 1, level: 19,
-    title: 'travel · 모양이 바뀌는 지난 일 문장', point: '불규칙과거',
-    items: ['Yesterday, we went to the beach.', 'Who came with you on the trip?', 'At the lake, she took a picture.', 'A small bird flew over our boat.', 'After lunch, I rode a bike.', 'Mom bought bread for us to share.', 'The bus left, but we stayed.', 'We spent the night in a tent.', 'Look at the shell I found!', 'My brother slept while we walked.'],
+    title: 'travel · 모양이 바뀌는 지난 일 낱말이 든 문장', point: '불규칙과거',
+    items: ['Yesterday, we went to the beach.', 'Who came with you on the trip?', 'At the lake, she took a picture.', 'A small bird flew over our boat.', 'After lunch, I rode a bike.', 'Mom bought bread for us to share.', 'We spent the night in a tent.', 'Look at the shell I found!', 'My brother slept while we walked.', 'We went to the park by bus.'],
   },
   {
     id: 'e6-1-20', subject: 'en', grade: 6, semester: 1, level: 20,
@@ -1092,22 +1092,22 @@ export const CURRICULUM_EN: LevelSheet[] = [
   },
   {
     id: 'e6-2-16', subject: 'en', grade: 6, semester: 2, level: 16,
-    title: 'colors · quiet/quite 처럼 헷갈리는 문장', point: '헷갈리는짝',
-    items: ['My cat has black feet.', 'Put this block on the desk.', 'Do you like brown bread?', 'Who is wearing the small crown?', 'The sky looks gray today.', 'We need some glue for this box.', 'These green apples taste good.', 'Let\'s greet our new teacher.', 'There is a white bird outside.', 'Can you write your name here?'],
+    title: 'colors · quiet/quite 처럼 헷갈리는 낱말이 든 문장', point: '헷갈리는짝',
+    items: ['My cat has black feet.', 'Put this block on the desk.', 'Do you like brown bread?', 'Who is wearing the small crown?', 'We need some glue for this box.', 'These green apples taste good.', 'Let\'s greet our new teacher.', 'There is a white bird outside.', 'Can you write your name here?', 'I have a green bag.'],
   },
   {
     id: 'e6-2-17', subject: 'en', grade: 6, semester: 2, level: 17,
-    title: 'travel · 두 낱말이 붙어 만들어진 문장', point: '복합어',
+    title: 'travel · 두 낱말이 붙어 만들어진 낱말이 든 문장', point: '복합어',
     items: ['The airplane is flying above the clouds.', 'Put your lunch in the backpack.', 'A long railroad connects the two towns.', 'Where is my passport?', 'We played games by the seaside yesterday.', 'Thank you for the beautiful postcard!', 'This suitcase is too heavy for me.', 'There are many buses on the highway.', 'Can we take the subway home?', 'My dad will meet us at the airport.'],
   },
   {
     id: 'e6-2-18', subject: 'en', grade: 6, semester: 2, level: 18,
-    title: 'daily life · 철자를 자주 틀리는 긴 문장', point: '자주틀리는말2',
-    items: ['Let us exercise in the park.', 'Did you eat breakfast today?', 'Please finish your homework before bed.', 'The bus schedule is on the wall.', 'Washing my face is part of my routine.', 'There is a calendar by the door.', 'We need to practice this song.', 'What would you like for dinner?', 'I walk to school every morning.', 'How beautiful the sky looks this evening!'],
+    title: 'daily life · 철자를 자주 틀리는 긴 낱말이 든 문장', point: '자주틀리는말2',
+    items: ['Let us exercise in the park.', 'Did you eat breakfast today?', 'Please finish your homework before bed.', 'The bus schedule is on the wall.', 'There is a calendar by the door.', 'We need to practice this song.', 'What would you like for dinner?', 'I walk to school every morning.', 'How beautiful the sky looks this evening!', 'I eat breakfast with my family.'],
   },
   {
     id: 'e6-2-19', subject: 'en', grade: 6, semester: 2, level: 19,
-    title: 'weather · -ly 가 붙어 만들어진 문장', point: '부사ly',
+    title: 'weather · -ly 가 붙어 만들어진 낱말이 든 문장', point: '부사ly',
     items: ['Dress warmly before you go outside.', 'The moon is shining brightly tonight.', 'The wind blew strongly all night.', 'Snow fell lightly on the trees.', 'Suddenly, dark clouds covered the sky.', 'Please close the window gently.', 'My feet hurt badly after the walk.', 'We can finally have a picnic!', 'Why did the rain start so early?', 'It is nearly time to go swimming.'],
   },
   {

@@ -39,17 +39,36 @@ const existing = new Set(
 
 const ENDS_OK = /[.!?]["'”’]?$/;
 const out = {};
-let kept = 0, dropped = 0;
+let kept = 0, cut = 0;
 const reasons = {};
 
-for (const f of readdirSync(DIR).filter((x) => x.endsWith('.json'))) {
+// 🔴 교차검증에서 뺀 문항과 그 자리에 새로 받은 보충분을 «여기서» 합친다.
+//    밖에서 합쳐 두면 이 검증기가 원본만 다시 읽어 조용히 덮어쓴다(2026-09-10 실측).
+const dropPath = join(DIR, 'xval-drop.json');
+const dropped = new Set(
+  existsSync(dropPath)
+    ? JSON.parse(readFileSync(dropPath, 'utf8')).map(([id, t]) => `${id}\t${t}`)
+    : [],
+);
+const extra = (id) => {
+  const f = join(DIR, `fix-${id}.json`);
+  if (!existsSync(f)) return [];
+  try {
+    const d = JSON.parse(readFileSync(f, 'utf8'));
+    const v = d[id] ?? Object.values(d)[0];
+    return Array.isArray(v) ? v : [];
+  } catch { return []; }
+};
+
+for (const f of readdirSync(DIR).filter((x) => x.endsWith('.json') && !x.startsWith('fix-'))) {
   const id = f.replace(/\.json$/, '');
   const spec = plan.get(id);
   if (!spec) continue;
   let data;
   try { data = JSON.parse(readFileSync(join(DIR, f), 'utf8')); } catch { continue; }
-  const items = data[id] ?? Object.values(data)[0];
-  if (!Array.isArray(items)) continue;
+  const base = data[id] ?? Object.values(data)[0];
+  if (!Array.isArray(base)) continue;
+  const items = [...base.filter((t) => !dropped.has(`${id}\t${t}`)), ...extra(id)];
 
   const seen = new Set();
   const good = [];
@@ -72,16 +91,16 @@ for (const f of readdirSync(DIR).filter((x) => x.endsWith('.json'))) {
     if (seen.has(key)) bad.push('급수 안 중복');
     if (existing.has(key)) bad.push('이미 급수표에 있음');
 
-    if (bad.length) { dropped++; for (const b of bad) reasons[b.split(' ')[0]] = (reasons[b.split(' ')[0]] ?? 0) + 1; continue; }
+    if (bad.length) { cut++; for (const b of bad) reasons[b.split(' ')[0]] = (reasons[b.split(' ')[0]] ?? 0) + 1; continue; }
     seen.add(key);
     good.push(t);
     kept++;
   }
-  out[id] = good;
+  out[id] = good.slice(0, 10);
 }
 
 const short = Object.entries(out).filter(([, v]) => v.length < 10);
-console.log(`급수 ${Object.keys(out).length}개 · 통과 ${kept} · 걸러냄 ${dropped}`);
+console.log(`급수 ${Object.keys(out).length}개 · 통과 ${kept} · 걸러냄 ${cut}`);
 console.log('걸린 이유:', Object.entries(reasons).map(([k, v]) => `${k} ${v}`).join(' · ') || '없음');
 if (short.length) {
   console.log(`\n10문항이 안 되는 급수 ${short.length}개 — 보충이 필요하다`);

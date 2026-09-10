@@ -402,7 +402,16 @@ export function runView(params: Params): View {
 
     // 문항이 바뀌면 곧바로 한 번 읽어 준다 (첫 문항은 사용자가 누르게 둔다 — iOS 소리 정책)
     if (state.idx > 0) void playCurrent();
-    else queueMicrotask(() => listenBtn.focus());
+
+    // 🔴 다음 문항으로 넘어가면 커서가 «쓰는 곳»에 있어야 한다.
+    //    받아쓰기는 듣고 바로 치는 일이라, 문항마다 칸을 눌러 주어야 하면
+    //    열 문항에 열 번 손이 자판을 떠난다(2026-09-10 사용자).
+    //    자판이 아닐 때(손글씨·글자 블록)는 잡을 칸이 없으므로 첫 문항에서만
+    //    「들려주세요」에 커서를 둔다.
+    queueMicrotask(() => {
+      if (settings.inputMode === 'keyboard') keyboardInput?.focus();
+      else if (state.idx === 0) listenBtn.focus();
+    });
   }
 
   function settingsPanel(): HTMLElement {

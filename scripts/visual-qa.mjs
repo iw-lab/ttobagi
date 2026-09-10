@@ -565,6 +565,51 @@ try {
   const padHint = await page.evaluate(() => document.body.innerText);
   step('영어는 4선지 안내가 나온다', padHint.includes('줄에 맞춰'), padHint.includes('줄에 맞춰') ? '4선지' : '원고지 안내가 나왔다');
 
+  /* ── 14f. 손이 자판을 떠나지 않는가 · 화면이 참말을 하는가 ── */
+  console.log('\n[14f] 손과 눈');
+
+  // 🔴 받아쓰기는 «듣고 바로 치는» 일이다. 문항마다 칸을 눌러 줘야 하면
+  //    열 문항에 열 번 손이 자판을 떠난다.
+  // ⚠️ 앞선 [14e] 가 「손글씨」로 바꿔 놓았고 그 설정은 저장된다 — 자판으로 되돌리고 본다.
+  //    (검사가 스스로 망가뜨린 상태를 그대로 두고 「고쳐지지 않았다」고 읽으면 안 된다)
+  await page.goto(`${BASE}#/run/c-g2-1-01?mode=practice`, { waitUntil: 'networkidle0' });
+  await sleep(500);
+  await page.evaluate(() => {
+    const btn = [...document.querySelectorAll('.switch-btn')].find((b) => b.textContent.includes('자판'));
+    if (btn && !btn.classList.contains('on')) btn.click();
+  });
+  await sleep(500);
+  const focus1 = await page.evaluate(() => document.activeElement?.classList.contains('answer-input'));
+  step('첫 문항에서 쓰는 칸에 커서가 있다', focus1 === true);
+
+  // 다음 문항으로 넘어간 뒤에도 커서가 그대로 쓰는 칸에 있어야 한다
+  await page.evaluate(() => {
+    const input = document.querySelector('.answer-input');
+    if (input) { input.value = '아무거나'; input.dispatchEvent(new Event('input', { bubbles: true })); }
+  });
+  await clickText(page, 'button', '확인');
+  await sleep(300);
+  await clickText(page, 'button', '다음');
+  await sleep(600);
+  const focus2 = await page.evaluate(() => document.activeElement?.classList.contains('answer-input'));
+  step('다음 문항에서도 커서가 쓰는 칸에 있다', focus2 === true);
+
+  // 🔴 「537급」은 화면 어디에도 없는 급수다 — 학기마다 1급부터 다시 시작한다.
+  await page.goto(`${BASE}#/`, { waitUntil: 'networkidle0' });
+  await sleep(400);
+  const homeText = await page.evaluate(() => document.body.innerText);
+  step('첫 화면이 없는 급수를 말하지 않는다',
+    !/국어\s*5\d\d급/.test(homeText) && /문항/.test(homeText),
+    (homeText.match(/국어[^·\n]*·[^·\n]*영어[^·\n]*/) ?? ['(못 찾음)'])[0].trim());
+
+  // 🔴 2학년이 늘 열려 있던 것은 코드에 박힌 값이었다 — 첫 학기부터 열려야 한다.
+  await page.evaluate(() => localStorage.removeItem('ttobagi.v1'));
+  await page.goto(`${BASE}#/curriculum`, { waitUntil: 'networkidle0' });
+  await sleep(600);
+  const openSemester = await page.evaluate(() =>
+    document.querySelector('.semester-head.open')?.textContent?.trim() ?? '(없음)');
+  step('처음 열면 첫 학기가 펼쳐진다', openSemester.startsWith('1학년 2학기'), openSemester);
+
   console.log('\n[15] 접근성');
   await page.reload({ waitUntil: 'networkidle0' });
   await sleep(400);

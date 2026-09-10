@@ -4,13 +4,20 @@ import { voiceStatus } from '../engine/speech';
 import { button, formatDate, h, navigate } from '../ui/dom';
 import type { View } from './view';
 
-/** 지금 들어 있는 급수를 그때그때 센다 */
+/**
+ * 지금 들어 있는 문항을 그때그때 센다.
+ *
+ * 🔴 「국어 537급」이라고 쓰면 안 된다. 급수는 **학기마다 1급부터 다시 시작**하므로
+ * 537급이라는 급수는 화면 어디에도 없다 — 학기별 번호를 전부 더한 값을 하나의
+ * 눈금인 양 내보인 것이다(2026-09-10 사용자가 「이게 뭐야?」라고 물었다).
+ * 선생님이 바로 알아듣는 단위는 «문항»이다.
+ */
 function sheetCounts(): string {
-  const ko = sheetsOf('ko').length;
-  const en = sheetsOf('en').length;
-  return en
-    ? `국어 ${ko}급 · 영어 ${en}급 · 소리까지 들어 있어요`
-    : `1~6학년 ${ko}급 · 소리까지 들어 있어요`;
+  const items = (s: 'ko' | 'en'): string =>
+    (sheetsOf(s).reduce((n, sheet) => n + sheet.items.length, 0)).toLocaleString('ko-KR');
+  return sheetsOf('en').length
+    ? `국어 ${items('ko')}문항 · 영어 ${items('en')}문항 · 소리까지 들어 있어요`
+    : `1~6학년 ${items('ko')}문항 · 소리까지 들어 있어요`;
 }
 
 export function homeView(): View {

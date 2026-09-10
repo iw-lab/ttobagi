@@ -134,6 +134,8 @@ export interface AppState {
   who: string;
   /** 마지막으로 본 급수표 */
   lastListId?: string;
+  /** 급수표 화면에서 마지막으로 펼친 학기 — 과목마다 따로 («ko» → «2-1») */
+  lastSemester?: Partial<Record<'ko' | 'en', string>>;
 }
 
 export function newId(prefix = ''): string {

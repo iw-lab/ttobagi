@@ -6,7 +6,7 @@
  */
 
 import { bySemester, sheetsOf, SUBJECT_LABEL, toWordList, type LevelSheet, type Subject } from '../engine/curriculum';
-import { upsertList } from '../engine/store';
+import { upsertList, getLastSemester, setLastSemester } from '../engine/store';
 import { newId } from '../engine/types';
 import { button, h, navigate, toast } from '../ui/dom';
 import type { Params, View } from './view';
@@ -36,8 +36,20 @@ function copyToMine(sheet: LevelSheet): void {
 export function curriculumView(params: Params): View {
   let subject: Subject = params.subject === 'en' ? 'en' : 'ko';
   // 국어는 1학년 2학기부터, 영어는 3학년 1학기부터 시작한다.
-  const firstOpen = (s: Subject): string =>
-    s === 'en' ? `3-1` : `${params.grade ? Number(params.grade) : 2}-${params.semester ?? 1}`;
+  /**
+   * 처음에 펼쳐 둘 학기.
+   *
+   * 🔴 예전엔 국어가 무조건 «2학년 1학기»였다 — 코드에 박힌 값일 뿐 근거가 없었고,
+   * 3학년 선생님은 앱을 열 때마다 남의 학년을 접어야 했다(2026-09-10 사용자).
+   * 순서: ① 주소에 적힌 학년·학기 → ② 지난번에 펼쳐 둔 학기 → ③ 그 과목의 첫 학기.
+   */
+  const firstOpen = (s: Subject): string => {
+    if (params.grade) return `${Number(params.grade)}-${params.semester ?? 1}`;
+    const remembered = getLastSemester(s);
+    if (remembered !== undefined) return remembered;
+    const first = bySemester(s)[0];
+    return first ? `${first.grade}-${first.semester}` : '';
+  };
   let openKey = firstOpen(subject);
 
   const el = h('div', { class: 'view' });
@@ -75,7 +87,8 @@ export function curriculumView(params: Params): View {
               ),
             )
           : null,
-        h('p', { class: 'muted' }, '학년과 학기를 고르면 급수표가 나옵니다. 만들지 않아도 바로 쓸 수 있어요.'),
+        // 「급이 뭐냐」는 물음이 실제로 나왔다 — 화면이 스스로 답하게 둔다.
+        h('p', { class: 'muted' }, '한 급은 문항 10개예요. 학기마다 1급부터 다시 시작합니다. 만들지 않아도 바로 쓸 수 있어요.'),
         h('p', { class: 'muted small' }, subject === 'en'
           ? '영어는 원어민이 읽어 주는 소리가 들어 있고, 손글씨 칸은 영어 공책처럼 네 줄로 나옵니다.'
           : '문항마다 또박또박 읽어 주는 소리가 이미 들어 있습니다 — 인터넷이 끊겨도 한 번 연 급수표는 그대로 들려요.'),
@@ -93,6 +106,8 @@ export function curriculumView(params: Params): View {
               type: 'button',
               onclick: () => {
                 openKey = open ? '' : key;
+                // 접어 둔 것도 기억한다 — 「접었는데 다시 열려 있다」가 더 짜증스럽다.
+                setLastSemester(subject, openKey);
                 render();
               },
             },

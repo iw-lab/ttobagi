@@ -202,6 +202,17 @@ export function getLastListId(): string | undefined {
   return load().lastListId;
 }
 
+/** 급수표에서 마지막으로 펼친 학기 — 선생님은 대개 자기 학년만 계속 쓴다 */
+export function getLastSemester(subject: 'ko' | 'en'): string | undefined {
+  return load().lastSemester?.[subject];
+}
+
+export function setLastSemester(subject: 'ko' | 'en', key: string | undefined): void {
+  const s = load();
+  s.lastSemester = { ...s.lastSemester, [subject]: key };
+  save();
+}
+
 /** 기기에 남은 모든 학습 기록을 지운다 — 공용 기기에서 다음 학생에게 넘기기 전에 쓴다 */
 export function wipeAll(): void {
   cache = blank();

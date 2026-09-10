@@ -171,7 +171,19 @@ export function resultView(params: Params): View {
                     )
                   : h('p', { class: 'answer-reveal' }, h('strong', {}, expected)),
                 a.text ? h('p', { class: 'muted small' }, `쓴 것: ${a.text}`) : a.ink ? h('img', { class: 'ink-mini', src: a.ink, alt: '쓴 글씨' }) : null,
-                a.tags.length ? h('p', { class: 'tags' }, ...a.tags.map((t) => h('span', { class: 'tag' }, t))) : null,
+                // 🔴 ○ 옆에 태그만 덩그러니 붙으면 「그래서 틀렸다는 건가?」로 읽힌다
+                //    (2026-09-10 사용자가 「뒷 일은」을 맞았는데 띄어쓰기 태그를 보고 물었다).
+                //    맞은 줄에서는 태그가 «틀림»이 아니라 «다음에 살펴볼 곳»이라고 말해 준다.
+                a.tags.length
+                  ? h(
+                      'p',
+                      { class: 'tags' },
+                      isCorrect(a.verdict)
+                        ? h('span', { class: 'tag-note' }, '맞았어요 · 다음엔 여기만 더')
+                        : null,
+                      ...a.tags.map((t) => h('span', { class: 'tag' }, t)),
+                    )
+                  : null,
               ),
             );
           }),

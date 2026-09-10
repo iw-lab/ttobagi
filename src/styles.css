@@ -378,6 +378,8 @@ p:last-child { margin-bottom: 0; }
 
 .tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .tag { background: var(--warn-bg); color: var(--warn); padding: 3px 10px; border-radius: 999px; font-size: 0.85rem; font-weight: 700; }
+/* 맞은 줄의 태그는 «틀림»이 아니라 «다음에 살펴볼 곳»이다 — 앞에 그렇게 적어 준다 */
+.tag-note { color: var(--muted); font-size: 0.85rem; align-self: center; margin-right: 2px; }
 
 /* ── 결과 ── */
 .result-head h1 { font-size: 2.6rem; }

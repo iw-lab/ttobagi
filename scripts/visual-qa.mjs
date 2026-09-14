@@ -610,6 +610,52 @@ try {
     document.querySelector('.semester-head.open')?.textContent?.trim() ?? '(없음)');
   step('처음 열면 첫 학기가 펼쳐진다', openSemester.startsWith('1학년 2학기'), openSemester);
 
+  console.log('\n[14g] 손글씨는 스스로 채점한다');
+
+  // 🔴 2026-09-14 사용자 신고: 손으로 쓴 답이 전부 «×» 로 보였다. 아직 아무도 ○× 를 안 눌렀는데
+  //    화면이 «맞지 않았으면 틀림» 으로 찍었고, 점수도 미확정을 분모에 넣어 «1 / 3» 이 나왔다.
+  //    (화면 위쪽은 「아직 채점 전」이라고 말하는 중이었다 — 말과 숫자가 어긋났다.)
+  //    설계 불변식은 «확정 전 정답 처리 금지» 인데, 그 반대편 «확정 전 오답 처리 금지» 가 없었다.
+  await page.evaluate(() => {
+    const KEY = 'ttobagi.v1';
+    const s = JSON.parse(localStorage.getItem(KEY) || '{}');
+    s.lists ??= []; s.attempts = (s.attempts || []).filter((a) => a.id !== 'QA_INK');
+    const S = { repeat: 2, gap: 8, rate: 0.9, readPunct: false, strictness: 'char', inputMode: 'ink',
+                hideScore: false, allowHint: false, easyFont: false, visualMode: false, visualSeconds: 3 };
+    const px = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    s.attempts.push({ id: 'QA_INK', listId: 'g1-2-01', listTitle: 'QA', lang: 'ko', who: 'QA',
+      mode: 'practice', settings: S, startedAt: Date.now() - 60000, finishedAt: Date.now(),
+      answers: [
+        { itemIndex: 0, expected: '학교', text: '', ink: px, verdict: 'wrong', tags: [], confirmed: false, elapsed: 900 },
+        { itemIndex: 1, expected: '친구', text: '', ink: px, verdict: 'wrong', tags: [], confirmed: false, elapsed: 900 },
+        { itemIndex: 2, expected: '연필', text: '연필', verdict: 'correct', tags: [], confirmed: true, elapsed: 900 },
+      ] });
+    localStorage.setItem(KEY, JSON.stringify(s));
+  });
+  await page.goto(`${BASE}#/result/QA_INK`, { waitUntil: 'networkidle0' });
+  await page.reload({ waitUntil: 'networkidle0' });
+  await sleep(700);
+  const ink = await page.evaluate(() => ({
+    score: document.querySelector('.result-head h1')?.textContent?.trim() ?? '',
+    icons: [...document.querySelectorAll('.result-row .result-icon')].map((e) => e.textContent.trim()),
+    todo: document.querySelectorAll('.result-row.todo').length,
+    wrong: document.querySelectorAll('.result-row.no').length,
+    buttons: document.querySelectorAll('.todo-mark .mark-buttons').length,
+  }));
+  step('채점 전 손글씨를 틀렸다고 하지 않는다', ink.wrong === 0 && ink.todo === 2,
+    `틀림 ${ink.wrong}개 · 채점전 ${ink.todo}개 · 아이콘 ${ink.icons.join('')}`);
+  step('점수 분모에 채점 전 답을 넣지 않는다', ink.score === '1 / 1', ink.score);
+  step('그 자리에서 스스로 채점할 수 있다', ink.buttons === 2, `버튼줄 ${ink.buttons}개`);
+
+  await page.evaluate(() => document.querySelector('.todo-mark .mark-buttons button')?.click());
+  await sleep(500);
+  const after = await page.evaluate(() => ({
+    score: document.querySelector('.result-head h1')?.textContent?.trim() ?? '',
+    todo: document.querySelectorAll('.result-row.todo').length,
+  }));
+  step('○ 를 누르면 그때 점수에 들어간다', after.score === '2 / 2' && after.todo === 1,
+    `${after.score} · 남은 채점전 ${after.todo}개`);
+
   console.log('\n[15] 접근성');
   await page.reload({ waitUntil: 'networkidle0' });
   await sleep(400);

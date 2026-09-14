@@ -1,5 +1,6 @@
 import { deleteAttempt, getAttempt, getList, saveAttempt } from '../engine/store';
 import { grade, isCorrect, markedAnswer, tagStats, TAG_HELP } from '../engine/grade';
+import { scoreLabel, scoreOf } from '../engine/score';
 import { RUN_MODE_LABEL, type Attempt } from '../engine/types';
 import { copyText, encodeResult, qrSvg, shareUrl } from '../engine/share';
 import { add, button, confirmBox, formatDate, h, navigate, toast } from '../ui/dom';
@@ -27,9 +28,11 @@ export function resultView(params: Params): View {
 
   function render(): void {
     el.replaceChildren();
-    const total = attempt!.answers.length;
-    const correct = attempt!.answers.filter((a) => isCorrect(a.verdict)).length;
-    const unconfirmed = attempt!.answers.filter((a) => !a.confirmed).length;
+    // 🔴 미확정(사람이 아직 ○× 를 안 누른 손글씨)은 **분자에도 분모에도** 넣지 않는다.
+    //    예전엔 `correct / total` 이라 미확정이 분모에 들어갔고, 화면이 「아직 채점 전」이라
+    //    말하면서 점수는 «1 / 3» 을 보여 줬다 — 아이 눈엔 손글씨가 통째로 틀린 것으로 보인다.
+    const score = scoreOf(attempt!.answers);
+    const unconfirmed = score.undecided;
     const wrongIds = attempt!.answers.filter((a) => !isCorrect(a.verdict) && a.confirmed).map((a) => a.itemId);
 
     /**
@@ -49,10 +52,10 @@ export function resultView(params: Params): View {
       h(
         'section',
         { class: 'card result-head' },
-        h('h1', {}, legacy ? '지난 기록' : attempt!.settings.hideScore ? '다 했어요!' : `${correct} / ${total}`),
+        h('h1', {}, legacy ? '지난 기록' : attempt!.settings.hideScore ? '다 했어요!' : scoreLabel(score)),
         h('p', { class: 'muted' }, `${attempt!.listTitle} · ${RUN_MODE_LABEL[attempt!.mode]} · ${attempt!.who} · ${formatDate(attempt!.finishedAt)}`),
         !legacy && unconfirmed
-          ? h('p', { class: 'notice' }, `손으로 쓴 답 ${unconfirmed}개는 아직 채점 전이에요. 아래에서 하나씩 봐 주세요.`)
+          ? h('p', { class: 'notice' }, `손으로 쓴 답 ${unconfirmed}개는 아직 채점 전이에요. 정답을 보고 스스로 ○ 또는 × 를 눌러 주세요. 누르기 전에는 점수에 넣지 않아요.`)
           : null,
         legacy
           ? h(
@@ -75,6 +78,19 @@ export function resultView(params: Params): View {
       ),
     );
 
+    /**
+     * ○/× 버튼 — **손글씨 카드와 문항별 목록이 같은 것을 쓴다.**
+     * 🔴 버튼을 두 군데 따로 만들면 한쪽만 고쳐져 「여기선 채점되는데 저기선 안 된다」가 된다.
+     *    (이 저장소가 이미 세 번 태운 형태 — 검사가 한쪽 경로에만 있는 결함과 같은 뿌리다.)
+     */
+    const markButtons = (a: Attempt['answers'][number], cls = 'btn small') =>
+      h(
+        'div',
+        { class: 'row center mark-buttons' },
+        button('○', () => { a.verdict = 'correct'; a.confirmed = true; saveAttempt(attempt!); render(); }, cls),
+        button('×', () => { a.verdict = 'wrong'; a.confirmed = true; saveAttempt(attempt!); render(); }, cls + ' ghost'),
+      );
+
     // 손글씨 채점 — 썸네일을 죽 늘어놓고 ○/× 만 누른다
     // 손으로 쓰다가 한 획도 안 그리고 낸 답은 ink 가 없다. 그것까지 여기 세워 두지 않으면
     // 「채점 전 n개」라고 말해 놓고 정작 채점할 자리가 없는 화면이 된다.
@@ -84,8 +100,8 @@ export function resultView(params: Params): View {
         h(
           'section',
           { class: 'card' },
-          h('h2', {}, '손글씨 채점'),
-          h('p', { class: 'muted small' }, '정답을 위에 두고 아이 글씨를 봅니다. 한 번씩만 눌러 주세요.'),
+          h('h2', {}, '내가 쓴 것 스스로 채점하기'),
+          h('p', { class: 'muted small' }, '위의 정답과 내가 쓴 글씨를 견주어 보고, 맞으면 ○ 틀리면 × 를 눌러요. 누르기 전에는 점수에 들어가지 않아요.'),
           h(
             'div',
             { class: 'ink-grid' },
@@ -97,22 +113,7 @@ export function resultView(params: Params): View {
                 a.ink
                   ? h('img', { class: 'ink-img', src: a.ink, alt: '학생이 쓴 글씨' })
                   : h('div', { class: 'ink-empty muted small' }, '빈 답'),
-                h(
-                  'div',
-                  { class: 'row center' },
-                  button('○', () => {
-                    a.verdict = 'correct';
-                    a.confirmed = true;
-                    saveAttempt(attempt!);
-                    render();
-                  }, 'btn small'),
-                  button('×', () => {
-                    a.verdict = 'wrong';
-                    a.confirmed = true;
-                    saveAttempt(attempt!);
-                    render();
-                  }, 'btn small ghost'),
-                ),
+                markButtons(a),
               ),
             ),
           ),
@@ -153,10 +154,14 @@ export function resultView(params: Params): View {
                 ),
               );
             }
+            // 🔴 **미확정은 «틀림»이 아니다.** 예전엔 confirmed 를 안 보고 «맞지 않았으면 ×» 로
+            //    찍어서, 손으로 쓴 답이 통째로 오답처럼 보였다(2026-09-14 사용자 신고).
+            //    아직 안 누른 것은 «?» 로 두고, 그 자리에서 바로 스스로 채점할 수 있게 한다.
+            const todo = !a.confirmed;
             return h(
               'li',
-              { class: `result-row ${isCorrect(a.verdict) ? 'ok' : 'no'}` },
-              h('span', { class: 'result-icon' }, isCorrect(a.verdict) ? '○' : a.verdict === 'partial' ? '△' : '×'),
+              { class: `result-row ${todo ? 'todo' : isCorrect(a.verdict) ? 'ok' : 'no'}` },
+              h('span', { class: 'result-icon' }, todo ? '?' : isCorrect(a.verdict) ? '○' : a.verdict === 'partial' ? '△' : '×'),
               h(
                 'div',
                 { class: 'result-body' },
@@ -171,6 +176,14 @@ export function resultView(params: Params): View {
                     )
                   : h('p', { class: 'answer-reveal' }, h('strong', {}, expected)),
                 a.text ? h('p', { class: 'muted small' }, `쓴 것: ${a.text}`) : a.ink ? h('img', { class: 'ink-mini', src: a.ink, alt: '쓴 글씨' }) : null,
+                todo
+                  ? h(
+                      'div',
+                      { class: 'todo-mark' },
+                      h('p', { class: 'muted small' }, '아직 채점 전이에요 — 정답과 견주어 보고 눌러 주세요'),
+                      markButtons(a),
+                    )
+                  : null,
                 // 🔴 ○ 옆에 태그만 덩그러니 붙으면 「그래서 틀렸다는 건가?」로 읽힌다
                 //    (2026-09-10 사용자가 「뒷 일은」을 맞았는데 띄어쓰기 태그를 보고 물었다).
                 //    맞은 줄에서는 태그가 «틀림»이 아니라 «다음에 살펴볼 곳»이라고 말해 준다.
@@ -178,7 +191,7 @@ export function resultView(params: Params): View {
                   ? h(
                       'p',
                       { class: 'tags' },
-                      isCorrect(a.verdict)
+                      !todo && isCorrect(a.verdict)
                         ? h('span', { class: 'tag-note' }, '맞았어요 · 다음엔 여기만 더')
                         : null,
                       ...a.tags.map((t) => h('span', { class: 'tag' }, t)),

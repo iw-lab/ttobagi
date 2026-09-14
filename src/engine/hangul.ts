@@ -150,7 +150,22 @@ export const SEVEN_JONG: Record<string, string> = {
 //    빠져 있어서 「『토끼전』을 다시 읽었다」 문항은 아이가 «토끼전을 다시 읽었다» 라고
 //    바르게 써도 «글자빠짐» 오답이 됐다 — 그것도 기본 엄격도(char, 부호를 아예 안 보는 모드)에서.
 //    가운뎃점(·)·물결(~)·붙임표는 이미 있었다. (2026-09-14 전수검사, 5,370문항 실측)
-export const PUNCT_RE = /[.,!?~…‥·"'“”‘’「」『』〈〉《》()［］\[\]{}:;\-–—]/g;
+/**
+ * 두 언어가 나눠 쓰는 문장부호 «본판». 여기 한 곳만 고치면 국어·영어가 같이 따라간다.
+ * 🔴 예전엔 국어(hangul.ts)와 영어(english.ts)에 같은 목록을 손으로 두 벌 두었다 —
+ *    낫표를 넣던 날 한쪽만 고칠 뻔했다(2026-09-14 교차검증 Claude 지적).
+ *    영어만 다른 점은 «곧은 홑따옴표» 하나뿐이고, 그건 낱말의 일부라 자리를 보고 가른다
+ *    (grade.ts 의 `stripPunct`).
+ */
+export const BASE_PUNCT = '.,!?~…‥·"“”‘’「」『』〈〉《》()［］[]{}:;-–—';
+
+/** 문자클래스 안에서 뜻이 달라지는 글자만 빗금을 붙인다 */
+export function punctClass(chars: string, extra = ''): RegExp {
+  const body = [...(chars + extra)].map((c) => (/[\\\]^-]/.test(c) ? `\\${c}` : c)).join('');
+  return new RegExp(`[${body}]`, 'g');
+}
+
+export const PUNCT_RE = punctClass(BASE_PUNCT, "'");
 
 /** 초성만 뽑기 — 힌트 기능용 */
 export function initials(text: string): string {

@@ -1,3 +1,4 @@
+import { BASE_PUNCT, punctClass } from './hangul';
 /**
  * 영어 받아쓰기 채점에 필요한 표와 판정.
  * hangul.ts 가 국어 쪽에서 하는 일을 영어 쪽에서 한다.
@@ -52,7 +53,9 @@ export const EN_TAG_HELP: Record<EnErrorTag, string> = {
  * 영어에서 아포스트로피는 «부호»가 아니라 **철자의 일부**다.
  * 국어용 PUNCT_RE 를 그대로 쓰면 don't 와 dont 가 같은 말이 되어 버린다.
  */
-export const EN_PUNCT_RE = /[.,!?~…‥·"“”‘’「」『』〈〉《》()［］[\]{}:;\-–—]/g;
+// 🔴 국어와 같은 본판을 쓴다. 영어만 «곧은 홑따옴표»를 여기서 빼는데, 그건 낱말의
+//    일부이기도 해서(don't) 자리를 보고 가른다 — `grade.ts` 의 `stripPunct`.
+export const EN_PUNCT_RE = punctClass(BASE_PUNCT);
 
 const VOWEL = new Set(['a', 'e', 'i', 'o', 'u']);
 /**

@@ -214,8 +214,21 @@ export function normalizeBase(text: string): string {
     .trim();
 }
 
+/**
+ * 🔴 영어 홑따옴표는 두 가지 일을 한다 — 낱말 **안**의 것은 글자이고(don't),
+ *    낱말을 **감싼** 것은 문장부호다('cat'). 그래서 한쪽만 지운다.
+ *
+ *    굽은 홑따옴표(‘ ’)를 곧은 것으로 접기 전에는 EN_PUNCT_RE 가 굽은 것만 지웠다.
+ *    접고 나니 «지워지던 것이 안 지워져» 「cat ← ‘cat’」 이 정답에서 오답으로 바뀌었다
+ *    (2026-09-14 교차검증 Claude·Gemini·codex **세 계열 일치**, 실측 재현).
+ *    자리에 따라 가르면 곧은 따옴표로 감싼 「'cat'」 도 같이 낫는다 — 그건 원래도 오답이었다.
+ */
+const EN_INNER_APOS = /([A-Za-z])'([A-Za-z])|'/g;
+
 export function stripPunct(text: string, lang: Lang = 'ko'): string {
-  return text.replace(OPS[lang].punct, '');
+  const base = text.replace(OPS[lang].punct, '');
+  if (lang !== 'en') return base;
+  return base.replace(EN_INNER_APOS, (_m, a: string | undefined, b: string) => (a ? `${a}'${b}` : ''));
 }
 
 export function stripSpace(text: string): string {

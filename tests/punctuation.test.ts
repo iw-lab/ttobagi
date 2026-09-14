@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { grade } from '../src/engine/grade';
 import { sheetsOf } from '../src/engine/curriculum';
-import { PUNCT_RE } from '../src/engine/hangul';
+import { BASE_PUNCT, PUNCT_RE } from '../src/engine/hangul';
 import { EN_PUNCT_RE } from '../src/engine/english';
 
 /**
@@ -59,5 +59,30 @@ describe('부호 때문에 «바르게 썼는데 오답» 이 되지 않는다',
     // 아이패드가 내는 굽은 홑따옴표는 같은 것으로 본다
     expect(grade("No, I don't.", 'No, I don’t.', { strictness: 'full', lang: 'en' }).verdict)
       .toBe('correct');
+  });
+});
+
+describe('영어 홑따옴표는 자리에 따라 다르다 (2026-09-14 교차검증 3계열 일치)', () => {
+  // 낱말을 «감싼» 것은 문장부호고, 낱말 «안»의 것은 글자다.
+  // 굽은따옴표를 곧은 것으로 접은 뒤 이 구분이 무너져 「cat ← ‘cat’」 이 오답이 됐었다.
+  it('감싼 따옴표는 기본 엄격도에서 무시된다', () => {
+    for (const got of ['\u2018cat\u2019', "'cat'", '\u201ccat\u201d']) {
+      expect(grade('cat', got, { strictness: 'char', lang: 'en' }).verdict, got).toBe('correct');
+    }
+  });
+
+  it('낱말 안의 홑따옴표는 글자로 남는다', () => {
+    expect(grade("don't", 'dont', { strictness: 'char', lang: 'en' }).verdict).not.toBe('correct');
+    expect(grade("don't", 'don\u2019t', { strictness: 'char', lang: 'en' }).verdict).toBe('correct');
+  });
+
+  it('국어·영어 문장부호 본판이 어긋나지 않는다', () => {
+    // 한 곳만 고치고 잊는 일을 막는다 — 영어가 빼는 것은 곧은 홑따옴표 하나뿐이다.
+    const chars = [...BASE_PUNCT];
+    for (const c of chars) {
+      expect(new RegExp(PUNCT_RE.source).test(c), `국어: ${c}`).toBe(true);
+      expect(new RegExp(EN_PUNCT_RE.source).test(c), `영어: ${c}`).toBe(true);
+    }
+    expect(new RegExp(EN_PUNCT_RE.source).test("'"), '영어는 홑따옴표를 안 지운다').toBe(false);
   });
 });

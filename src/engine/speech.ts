@@ -446,9 +446,17 @@ function giveUpBoost(): void {
   try {
     void boostCtx?.close();
   } catch {
-    /* 이미 닫힘 */
+    /* 이미 닫힌 context 를 또 닫으면 던진다 — 닫는 것이 목적이었으니 그냥 둔다 */
   }
   boostCtx = null;
+  asleepStrikes = 0;
+  // 🔴 영영 버리면 «첫 손짓 전에 두 번 막힌» 것 때문에 남은 수업 내내 작게 들린다.
+  //    브라우저가 소리를 허락하는 자리는 «사용자의 손짓» 이므로, 다음 손짓에 다시 해 본다
+  //    (2026-09-14 교차검증 Claude 지적).
+  if (typeof document === 'undefined') return;
+  const retry = (): void => { boostOff = false; };
+  document.addEventListener('pointerdown', retry, { once: true });
+  document.addEventListener('keydown', retry, { once: true });
 }
 
 /**
@@ -498,7 +506,7 @@ function unboost(audio: HTMLAudioElement): void {
     n.src.disconnect();
     n.gain.disconnect();
   } catch {
-    /* 이미 끊김 */
+    /* context 가 이미 닫혔으면 던진다 — 끊는 것이 목적이었으니 그냥 둔다 */
   }
 }
 
@@ -508,11 +516,19 @@ async function playSource(url: string, opts: SpeakOptions): Promise<void> {
   for (let i = 0; i < times; i++) {
     if (opts.signal?.aborted) return;
     let failed = false;
+    // 🔴 이전 소리를 «먼저» 끊는다. boost() 는 resume 을 기다려 시간이 걸릴 수 있는데,
+    //    그 사이 앞 문항 소리가 계속 나면 두 소리가 겹친다
+    //    (2026-09-14 교차검증 Claude 지적).
+    stopCurrentAudio();
     const audio = new Audio(url);
     await boost(audio);
-    if (opts.signal?.aborted) return;
+    // 🔴 깨우기를 기다리는 동안 다음 문항으로 넘어갔으면, 이어 붙인 마디를 끊고 나간다.
+    //    안 끊으면 넘길 때마다 쌓인다(Claude·Gemini·codex·Grok **네 계열 전원 일치**).
+    if (opts.signal?.aborted) {
+      unboost(audio);
+      return;
+    }
     await new Promise<void>((resolve) => {
-      stopCurrentAudio();
       currentAudio = audio;
       audio.playbackRate = Math.max(0.5, Math.min(2, opts.rate ?? 1));
       let done = false;
@@ -522,6 +538,7 @@ async function playSource(url: string, opts: SpeakOptions): Promise<void> {
         if (bad) failed = true;
         opts.signal?.removeEventListener('abort', onAbort);
         stopHooks.delete(onAbort);
+        dropWatch();
         unboost(audio);
         if (currentAudio === audio) currentAudio = null;
         resolve();
@@ -537,8 +554,20 @@ async function playSource(url: string, opts: SpeakOptions): Promise<void> {
         finish();
       }
       stopHooks.add(onAbort);
-      audio.onended = () => finish();
-      audio.onerror = () => finish(true);
+      // 🔴 재생 «도중» 에 context 가 잠들거나 닫히면 소리는 끊기는데 ended 는 그대로 울린다
+      //    — 「들려줬다」고 거짓말하게 된다(Gemini·codex 두 계열 일치).
+      //    그 순간을 잡아 실패로 돌리면 playBuiltin 이 한 번 더 시도한다.
+      const watched = boosted.has(audio) ? boostCtx : null;
+      const onCtxChange = (): void => {
+        if (watched && watched.state !== 'running') {
+          giveUpBoost();
+          finish(true);
+        }
+      };
+      watched?.addEventListener('statechange', onCtxChange);
+      const dropWatch = (): void => watched?.removeEventListener('statechange', onCtxChange);
+      audio.onended = () => { dropWatch(); finish(); };
+      audio.onerror = () => { dropWatch(); finish(true); };
       opts.signal?.addEventListener('abort', onAbort, { once: true });
       audio.play().catch(() => finish(true));
     });

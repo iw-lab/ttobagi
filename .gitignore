@@ -6,3 +6,6 @@ qa-report.json
 .audio-tmp/
 scripts/en/.cache/
 .audio-tmp-en/
+
+# 인디스쿨 글용 화면 사진 (스크립트로 언제든 다시 찍는다)
+post-shots/

@@ -436,20 +436,69 @@ const BOOST = 2.16;
 let boostCtx: AudioContext | null = null;
 const boosted = new WeakSet<HTMLAudioElement>();
 
-function boost(audio: HTMLAudioElement): void {
-  if (boosted.has(audio)) return;
+const nodesOf = new WeakMap<HTMLAudioElement, { src: MediaElementAudioSourceNode; gain: GainNode }>();
+let boostOff = false;
+let asleepStrikes = 0;
+
+/** 키우기를 통째로 버린다 — 작게 들리는 편이 «안 들리는 것»보다 낫다. */
+function giveUpBoost(): void {
+  boostOff = true;
+  try {
+    void boostCtx?.close();
+  } catch {
+    /* 이미 닫힘 */
+  }
+  boostCtx = null;
+}
+
+/**
+ * 소리를 키운다 — `audio.volume` 은 1.0 을 못 넘어 웹오디오를 거쳐야 한다.
+ *
+ * 🔴 거치는 순간 이 소리는 **오디오 장치가 아니라 AudioContext 로만** 나간다.
+ *    그래서 context 가 잠들면(다른 탭을 보거나, 기기가 소리를 잠깐 가져가거나,
+ *    브라우저가 저절로 멈추거나) `play()` 는 멀쩡히 성공하고 `ended` 도 울리는데
+ *    **소리만 안 난다.** 「읽어 주다가 갑자기 안 읽어 주고 새로고침하면 다시 된다」가
+ *    이것이다(2026-09-14 사용자 신고 — 이 기능을 넣은 그날 나왔다).
+ *    그래서 **재생 직전마다** 깨우고, 두 번 못 깨우면 키우기를 버린다.
+ *
+ * 🔴 `createMediaElementSource` 로 만든 마디는 브라우저가 붙들고 있다. 문항마다
+ *    새 Audio 를 만드므로 끝나면 끊어 준다(`unboost`) — 안 끊으면 계속 쌓인다.
+ */
+async function boost(audio: HTMLAudioElement): Promise<void> {
+  if (boostOff) return;
   const Ctx = (globalThis as { AudioContext?: typeof AudioContext }).AudioContext;
   if (!Ctx) return;
   try {
     boostCtx ??= new Ctx();
-    if (boostCtx.state === 'suspended') void boostCtx.resume();
+    if (boostCtx.state !== 'running') await boostCtx.resume();
+    if (boostCtx.state !== 'running') {
+      // 잠든 채로 이으면 «소리 없는 재생»이 된다. 잇지 않고 그냥 원래 소리로 낸다.
+      if (++asleepStrikes >= 2) giveUpBoost();
+      return;
+    }
+    asleepStrikes = 0;
+    if (boosted.has(audio)) return;
     const src = boostCtx.createMediaElementSource(audio);
     const gain = boostCtx.createGain();
     gain.gain.value = BOOST;
     src.connect(gain).connect(boostCtx.destination);
     boosted.add(audio);
+    nodesOf.set(audio, { src, gain });
   } catch {
     /* 이 기기에서는 못 키운다 — 원래 소리로 그냥 난다 */
+  }
+}
+
+/** 다 쓴 마디를 끊는다 */
+function unboost(audio: HTMLAudioElement): void {
+  const n = nodesOf.get(audio);
+  if (!n) return;
+  nodesOf.delete(audio);
+  try {
+    n.src.disconnect();
+    n.gain.disconnect();
+  } catch {
+    /* 이미 끊김 */
   }
 }
 
@@ -459,9 +508,10 @@ async function playSource(url: string, opts: SpeakOptions): Promise<void> {
   for (let i = 0; i < times; i++) {
     if (opts.signal?.aborted) return;
     let failed = false;
+    const audio = new Audio(url);
+    await boost(audio);
+    if (opts.signal?.aborted) return;
     await new Promise<void>((resolve) => {
-      const audio = new Audio(url);
-      boost(audio);
       stopCurrentAudio();
       currentAudio = audio;
       audio.playbackRate = Math.max(0.5, Math.min(2, opts.rate ?? 1));
@@ -472,6 +522,7 @@ async function playSource(url: string, opts: SpeakOptions): Promise<void> {
         if (bad) failed = true;
         opts.signal?.removeEventListener('abort', onAbort);
         stopHooks.delete(onAbort);
+        unboost(audio);
         if (currentAudio === audio) currentAudio = null;
         resolve();
       };

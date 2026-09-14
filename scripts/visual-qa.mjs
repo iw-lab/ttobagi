@@ -99,8 +99,20 @@ try {
   await page.evaluate(() => (location.hash = '#/curriculum'));
   await sleep(300);
   step('학년별 급수표 화면', (await textOf(page, 'h1')) === '급수표');
+  // 🔴 처음 오는 사람에게는 «아무 학기도 펼치지 않은 채로» 보여 준다(2026-09-14 사용자).
+  //    예전엔 1학년 1학기가 펼쳐진 채로 열려서 6학년 선생님은 매번 남의 학년을 접어야 했다.
+  const heads = (await page.$$('.semester-head')).length;
+  const openedAtFirst = (await page.$$('.semester-head.open')).length;
+  step('학기가 다 나온다', heads >= 10, `${heads}학기`);
+  step('처음엔 다 접혀 있다', openedAtFirst === 0, `펼쳐진 것 ${openedAtFirst}개`);
+  step('연습·시험 차이를 말해 준다', (await page.evaluate(() =>
+    /다 쓸 때까지 정답을 감춰 둡니다/.test(document.body.innerText))));
+
+  // 한 학기를 펼쳐야 급수가 나온다
+  await page.evaluate(() => document.querySelector('.semester-head')?.click());
+  await sleep(300);
   const levelRows = (await page.$$('.level-row')).length;
-  step('급수가 펼쳐져 있다', levelRows > 0, `${levelRows}급`);
+  step('펼치면 급수가 나온다', levelRows > 0, `${levelRows}급`);
   const added = await clickText(page, '.level-actions button', '담기');
   await sleep(500);
   step('학년별 급수표를 담았다', added && (await textOf(page, 'h1')) === '급수표');
@@ -602,13 +614,31 @@ try {
     !/국어\s*5\d\d급/.test(homeText) && /문항/.test(homeText),
     (homeText.match(/국어[^·\n]*·[^·\n]*영어[^·\n]*/) ?? ['(못 찾음)'])[0].trim());
 
-  // 🔴 2학년이 늘 열려 있던 것은 코드에 박힌 값이었다 — 첫 학기부터 열려야 한다.
+  // 🔴 학기를 펼쳐 두는 규칙은 두 줄이고, 둘 다 지켜야 한다.
+  //    ① 처음 오는 사람에겐 아무것도 안 펼친다 — 예전엔 1학년 1학기가 펼쳐진 채로 열려서
+  //       6학년 선생님은 매번 남의 학년을 접어야 했다(2026-09-14 사용자).
+  //    ② 한 번 펼쳐 본 학기는 다음에도 그대로 열어 준다 — 5학년 2학기를 고른 아이가
+  //       다음에 또 찾아 들어가게 만들지 않는다(2026-09-10 · 2026-09-14 사용자 재확인).
   await page.evaluate(() => localStorage.removeItem('ttobagi.v1'));
   await page.goto(`${BASE}#/curriculum`, { waitUntil: 'networkidle0' });
   await sleep(600);
-  const openSemester = await page.evaluate(() =>
-    document.querySelector('.semester-head.open')?.textContent?.trim() ?? '(없음)');
-  step('처음 열면 첫 학기가 펼쳐진다', openSemester.startsWith('1학년 2학기'), openSemester);
+  const openAtFirstVisit = await page.evaluate(() =>
+    document.querySelectorAll('.semester-head.open').length);
+  step('처음 열면 아무 학기도 안 펼쳐진다', openAtFirstVisit === 0, `펼쳐진 것 ${openAtFirstVisit}개`);
+
+  const picked = await page.evaluate(() => {
+    const heads = [...document.querySelectorAll('.semester-head')];
+    const want = heads.find((el) => el.textContent?.includes('5학년 2학기')) ?? heads[0];
+    want.click();
+    return want.textContent?.split('\n')[0]?.trim() ?? '';
+  });
+  await sleep(300);
+  await page.goto(`${BASE}#/`, { waitUntil: 'networkidle0' });
+  await page.goto(`${BASE}#/curriculum`, { waitUntil: 'networkidle0' });
+  await sleep(600);
+  const remembered = await page.evaluate(() =>
+    document.querySelector('.semester-head.open')?.textContent?.split('\n')[0]?.trim() ?? '(없음)');
+  step('한 번 펼친 학기는 다음에도 열려 있다', remembered === picked, `${picked} → ${remembered}`);
 
   console.log('\n[14g] 손글씨는 스스로 채점한다');
 

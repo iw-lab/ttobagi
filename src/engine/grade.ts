@@ -203,7 +203,15 @@ function punctOne(lang: Lang): RegExp {
 
 /** 유니코드 정규화 + 공백 정돈. 채점 전 항상 통과시킨다. */
 export function normalizeBase(text: string): string {
-  return text.normalize('NFC').replace(/\s+/g, ' ').trim();
+  return text
+    .normalize('NFC')
+    // 🔴 굽은 따옴표(“ ” ‘ ’)는 한글 키보드로 칠 수 없다 — 아이가 낼 수 있는 건 곧은 것뿐이다.
+    //    모양만 다른 것을 틀렸다고 하면 «바르게 썼는데 오답» 이 된다(국어 문항 199곳·29급수).
+    //    글자 하나를 글자 하나로 바꾸는 것이라 원문과의 자리 대응은 그대로다.
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 export function stripPunct(text: string, lang: Lang = 'ko'): string {

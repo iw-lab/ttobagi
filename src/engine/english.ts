@@ -52,7 +52,7 @@ export const EN_TAG_HELP: Record<EnErrorTag, string> = {
  * 영어에서 아포스트로피는 «부호»가 아니라 **철자의 일부**다.
  * 국어용 PUNCT_RE 를 그대로 쓰면 don't 와 dont 가 같은 말이 되어 버린다.
  */
-export const EN_PUNCT_RE = /[.,!?~…·"“”‘’()［］[\]{}:;\-—]/g;
+export const EN_PUNCT_RE = /[.,!?~…‥·"“”‘’「」『』〈〉《》()［］[\]{}:;\-–—]/g;
 
 const VOWEL = new Set(['a', 'e', 'i', 'o', 'u']);
 /**

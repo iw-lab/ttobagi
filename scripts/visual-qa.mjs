@@ -656,6 +656,41 @@ try {
   step('○ 를 누르면 그때 점수에 들어간다', after.score === '2 / 2' && after.todo === 1,
     `${after.score} · 남은 채점전 ${after.todo}개`);
 
+  console.log('\n[14h] 영어는 뜻도 함께');
+
+  // 🔴 받아쓰기만 하고 끝나면 공부가 되지 않는다(2026-09-14 사용자 요청). 영어 결과에는 한국어 뜻을 붙인다.
+  //    사전은 «영어 기록을 열 때만» 동적 import 로 오므로, 뜬 뒤에 세야 한다.
+  await page.evaluate(() => {
+    const KEY = 'ttobagi.v1';
+    const s = JSON.parse(localStorage.getItem(KEY) || '{}');
+    s.lists ??= []; s.attempts = (s.attempts || []).filter((a) => a.id !== 'QA_EN');
+    const S = { repeat: 2, gap: 8, rate: 0.9, readPunct: false, strictness: 'char', inputMode: 'keyboard',
+                hideScore: false, allowHint: false, easyFont: false, visualMode: false, visualSeconds: 3 };
+    s.attempts.push({ id: 'QA_EN', listId: 'e3-1-01', listTitle: 'QA-EN', lang: 'en', who: 'QA',
+      mode: 'practice', settings: S, startedAt: Date.now() - 60000, finishedAt: Date.now(),
+      answers: [
+        { itemIndex: 0, expected: 'cat', text: 'cat', verdict: 'correct', tags: [], confirmed: true, elapsed: 900 },
+        { itemIndex: 1, expected: 'hat', text: 'hot', verdict: 'wrong', tags: [], confirmed: true, elapsed: 900 },
+      ] });
+    localStorage.setItem(KEY, JSON.stringify(s));
+  });
+  await page.goto(`${BASE}#/result/QA_EN`, { waitUntil: 'networkidle0' });
+  await page.reload({ waitUntil: 'networkidle0' });
+  await sleep(1500);   // 사전 청크가 오고 다시 그려질 틈
+  const gl = await page.evaluate(() => ({
+    n: document.querySelectorAll('.gloss').length,
+    texts: [...document.querySelectorAll('.gloss')].map((e) => e.textContent.trim()),
+  }));
+  // 맞은 것에도 붙어야 한다 — 맞힌 낱말이야말로 뜻까지 챙기면 그대로 어휘가 된다
+  step('영어 결과에 뜻이 붙는다 (맞은 것·틀린 것 모두)', gl.n === 2, `${gl.n}개 · ${gl.texts.join(' / ')}`);
+  step('뜻이 한국어다', gl.texts.length > 0 && gl.texts.every((t) => /[가-힣]/.test(t)), gl.texts.join(' / '));
+
+  // 국어 기록에는 뜻이 붙지 않는다(사전을 부르지도 않아야 한다)
+  await page.goto(`${BASE}#/result/QA_INK`, { waitUntil: 'networkidle0' });
+  await sleep(700);
+  const koGloss = await page.evaluate(() => document.querySelectorAll('.gloss').length);
+  step('국어 결과에는 뜻이 붙지 않는다', koGloss === 0, `${koGloss}개`);
+
   console.log('\n[15] 접근성');
   await page.reload({ waitUntil: 'networkidle0' });
   await sleep(400);

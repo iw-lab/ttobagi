@@ -6,6 +6,23 @@ import { copyText, encodeResult, qrSvg, shareUrl } from '../engine/share';
 import { add, button, confirmBox, formatDate, h, navigate, toast } from '../ui/dom';
 import type { Params, View } from './view';
 
+/**
+ * 영어 뜻 사전은 **영어 기록을 열 때만** 불러온다(동적 import → 별도 청크).
+ * 🔴 본 번들에 2,182줄을 얹으면 국어만 쓰는 교실의 첫 로딩까지 무거워진다.
+ *    한 번 받아 두면 서비스워커가 캐시하므로 오프라인에서도 다음부터는 그대로 뜬다.
+ */
+let glossary: Record<string, string> | null = null;
+let glossaryPending = false;
+function ensureGlossary(onReady: () => void): void {
+  if (glossary || glossaryPending) return;
+  glossaryPending = true;
+  import('../engine/glossary-en')
+    .then((m) => { glossary = m.GLOSSARY_EN; onReady(); })
+    // 사전을 못 받아도 채점 결과는 그대로 보여야 한다 — 뜻만 빠진다.
+    .catch(() => { glossary = {}; })
+    .finally(() => { glossaryPending = false; });
+}
+
 export function resultView(params: Params): View {
   const attempt = getAttempt(params.id);
   if (!attempt) {
@@ -25,6 +42,9 @@ export function resultView(params: Params): View {
   const itemText = (id: string) => list?.items.find((i) => i.id === id)?.text ?? '(지워진 문항)';
 
   const el = h('div', { class: 'view' });
+
+  // 영어 기록이면 뜻을 곁들인다 — 받아쓰기만 하고 끝나면 공부가 되지 않는다(2026-09-14 사용자 요청).
+  if (lang === 'en') ensureGlossary(() => render());
 
   function render(): void {
     el.replaceChildren();
@@ -175,6 +195,11 @@ export function resultView(params: Params): View {
                       ),
                     )
                   : h('p', { class: 'answer-reveal' }, h('strong', {}, expected)),
+                // 🔵 영어는 뜻을 함께 보여 준다. 정답이든 오답이든 붙인다 —
+                //    맞힌 낱말이야말로 뜻까지 챙겨 가면 그대로 어휘가 된다.
+                lang === 'en' && glossary?.[expected]
+                  ? h('p', { class: 'gloss' }, glossary[expected])
+                  : null,
                 a.text ? h('p', { class: 'muted small' }, `쓴 것: ${a.text}`) : a.ink ? h('img', { class: 'ink-mini', src: a.ink, alt: '쓴 글씨' }) : null,
                 todo
                   ? h(

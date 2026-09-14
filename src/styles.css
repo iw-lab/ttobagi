@@ -394,6 +394,8 @@ p:last-child { margin-bottom: 0; }
 .todo-mark .mark-buttons { justify-content: flex-start; }
 .result-icon { font-size: 1.4rem; font-weight: 800; }
 .result-body { flex: 1; }
+/* 영어 뜻 — 정답보다 조용하되 «쓴 것»보다는 눈에 들어와야 한다(공부하는 줄이다) */
+.gloss { margin: 2px 0 0; color: var(--brand); font-weight: 600; }
 .stat-list { margin: 0; padding-left: 18px; }
 .bar-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .bar-row { display: flex; align-items: center; gap: 10px; }

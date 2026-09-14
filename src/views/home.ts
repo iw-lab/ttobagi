@@ -1,7 +1,7 @@
 import { getLastListId, getLists, getWho, setWho } from '../engine/store';
 import { sheetsOf } from '../engine/curriculum';
 import { voiceStatus } from '../engine/speech';
-import { button, formatDate, h, navigate } from '../ui/dom';
+import { button, formatDate, h, modeHelp, navigate } from '../ui/dom';
 import type { View } from './view';
 
 /**
@@ -110,6 +110,7 @@ export function homeView(): View {
             ),
           ),
         ),
+        modeHelp(),
       )
     : h(
         'section',

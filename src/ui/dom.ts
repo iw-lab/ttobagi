@@ -130,3 +130,22 @@ export function formatDate(ts: number): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+
+/**
+ * «연습» 과 «시험» 이 무엇이 다른지 한 줄로 말해 준다.
+ *
+ * 🔴 버튼에 이름만 적어 두면 무엇이 다른지 알 수 없다 — 실제로 헷갈린다는 말을 들었다
+ *    (2026-09-14 사용자). 차이는 코드에 이미 있는 것만 적는다(`views/run.ts`):
+ *    시험은 ① 끝날 때까지 정오·정답을 안 보여 주고 ② 힌트·보여주기가 꺼지며
+ *    ③ 채점 기준을 도중에 바꿀 수 없다.
+ */
+export function modeHelp(): HTMLElement {
+  return h(
+    'p',
+    { class: 'muted small' },
+    h('strong', {}, '연습'),
+    '은 한 문제 쓸 때마다 맞았는지 바로 알려 주고, 힌트도 켤 수 있어요. ',
+    h('strong', {}, '시험'),
+    '은 다 쓸 때까지 정답을 감춰 둡니다(먼저 낸 아이가 답을 알려 주는 일을 막아요).',
+  );
+}

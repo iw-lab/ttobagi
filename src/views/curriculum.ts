@@ -8,7 +8,7 @@
 import { bySemester, sheetsOf, SUBJECT_LABEL, toWordList, type LevelSheet, type Subject } from '../engine/curriculum';
 import { upsertList, getLastSemester, setLastSemester } from '../engine/store';
 import { newId } from '../engine/types';
-import { button, h, navigate, toast } from '../ui/dom';
+import { button, h, modeHelp, navigate, toast } from '../ui/dom';
 import type { Params, View } from './view';
 
 /**
@@ -47,8 +47,10 @@ export function curriculumView(params: Params): View {
     if (params.grade) return `${Number(params.grade)}-${params.semester ?? 1}`;
     const remembered = getLastSemester(s);
     if (remembered !== undefined) return remembered;
-    const first = bySemester(s)[0];
-    return first ? `${first.grade}-${first.semester}` : '';
+    // 🔴 처음 오는 사람에게는 «아무것도 안 펼친» 채로 보여 준다 — 1학년 1학기가 펼쳐진 채로
+    //    열리면 6학년 선생님은 매번 남의 학년을 접어야 한다(2026-09-14 사용자).
+    //    한 번이라도 펼쳐 본 적이 있으면 위의 «기억» 이 이기므로 이 줄은 첫 방문에만 쓰인다.
+    return '';
   };
   let openKey = firstOpen(subject);
 
@@ -92,6 +94,7 @@ export function curriculumView(params: Params): View {
         h('p', { class: 'muted small' }, subject === 'en'
           ? '영어는 원어민이 읽어 주는 소리가 들어 있고, 손글씨 칸은 영어 공책처럼 네 줄로 나옵니다.'
           : '문항마다 또박또박 읽어 주는 소리가 이미 들어 있습니다 — 인터넷이 끊겨도 한 번 연 급수표는 그대로 들려요.'),
+        modeHelp(),
       ),
       ...groups.map((g) => {
         const key = `${g.grade}-${g.semester}`;

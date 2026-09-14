@@ -432,7 +432,7 @@ export async function playUrl(url: string, opts: SpeakOptions = {}): Promise<voi
  * 파일 7,660개를 다시 굽는 대신 재생할 때 키운다 — 웹오디오 게인은 1.0 을 넘길 수 있고,
  * `audio.volume` 은 못 넘긴다. 웹오디오가 없거나 막히면 그냥 원래 소리로 난다(무해한 실패).
  */
-const BOOST = 1.8;
+const BOOST = 2.16;
 let boostCtx: AudioContext | null = null;
 const boosted = new WeakSet<HTMLAudioElement>();
 

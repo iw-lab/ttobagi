@@ -18,7 +18,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const WIDE = { width: 1280, height: 860, deviceScaleFactor: 2 };
 const BOARD = { width: 1600, height: 900, deviceScaleFactor: 2 };
 
-const browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox'] });
+const browser = await puppeteer.launch({ headless: 'new', pipe: true, args: ['--no-sandbox'] });
 const page = await browser.newPage();
 await page.setViewport(WIDE);
 const shot = async (name) => {

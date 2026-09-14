@@ -427,6 +427,32 @@ export async function playUrl(url: string, opts: SpeakOptions = {}): Promise<voi
   await playSource(url, opts);
 }
 
+/**
+ * 미리 구운 음원은 교실 스피커에서 «조금 작다»는 말을 들었다(2026-09-14 사용자).
+ * 파일 7,660개를 다시 굽는 대신 재생할 때 키운다 — 웹오디오 게인은 1.0 을 넘길 수 있고,
+ * `audio.volume` 은 못 넘긴다. 웹오디오가 없거나 막히면 그냥 원래 소리로 난다(무해한 실패).
+ */
+const BOOST = 1.8;
+let boostCtx: AudioContext | null = null;
+const boosted = new WeakSet<HTMLAudioElement>();
+
+function boost(audio: HTMLAudioElement): void {
+  if (boosted.has(audio)) return;
+  const Ctx = (globalThis as { AudioContext?: typeof AudioContext }).AudioContext;
+  if (!Ctx) return;
+  try {
+    boostCtx ??= new Ctx();
+    if (boostCtx.state === 'suspended') void boostCtx.resume();
+    const src = boostCtx.createMediaElementSource(audio);
+    const gain = boostCtx.createGain();
+    gain.gain.value = BOOST;
+    src.connect(gain).connect(boostCtx.destination);
+    boosted.add(audio);
+  } catch {
+    /* 이 기기에서는 못 키운다 — 원래 소리로 그냥 난다 */
+  }
+}
+
 /** 소리 하나를 정해진 횟수만큼 재생한다. 실패하면 던진다 — «들려줬다»고 거짓말하지 않으려고. */
 async function playSource(url: string, opts: SpeakOptions): Promise<void> {
   const times = Math.max(1, opts.times ?? 1);
@@ -435,6 +461,7 @@ async function playSource(url: string, opts: SpeakOptions): Promise<void> {
     let failed = false;
     await new Promise<void>((resolve) => {
       const audio = new Audio(url);
+      boost(audio);
       stopCurrentAudio();
       currentAudio = audio;
       audio.playbackRate = Math.max(0.5, Math.min(2, opts.rate ?? 1));
@@ -514,9 +541,7 @@ export function playItem(
   // 내장 음원이 있으면 그게 브라우저 목소리보다 낫다(자연스럽고, 기기를 안 탄다).
   // 교사 녹음만 이보다 앞선다 — 아이에게는 담임 목소리가 가장 좋다.
   if (known === false && opts.audio) {
-    return playUrl(opts.audio, opts)
-      .then(() => 'builtin' as const)
-      .catch(() => speakNow(text, opts));
+    return playBuiltin(opts.audio, opts).then((ok) => (ok ? 'builtin' : speakNow(text, opts)));
   }
 
   if (known === false) {
@@ -534,16 +559,31 @@ export function playItem(
         // 녹음이 깨졌으면 «들려줬다»고 하지 않고 다음 차례로 넘어간다
       }
     }
-    if (opts.audio) {
-      try {
-        await playUrl(opts.audio, opts);
-        return 'builtin' as const;
-      } catch {
-        /* 음원을 못 받았다 — 목소리로 */
-      }
-    }
+    if (opts.audio && (await playBuiltin(opts.audio, opts))) return 'builtin' as const;
     return speakNow(text, opts);
   })();
+}
+
+/**
+ * 미리 구운 음원을 재생한다. 성공하면 true.
+ *
+ * 🔴 첫 재생은 «받는 중»이라 실패할 수 있다. 예전에는 그 한 번으로 포기하고 조용히
+ *    브라우저 목소리로 넘어갔다 — 교실에서는 첫 문항만 딴 사람 목소리로 나왔다
+ *    (2026-09-14 사용자 신고: 「다른 톤의 다른 목소리가 나오기도」, 한 번 뒤로는 재현 안 됨.
+ *    캐시에 들어간 뒤로는 안 그러니 증상이 꼭 한 번만 보인다).
+ *    그래서 짧게 한 번 더 받아 본다. 중간에 멈춘 것(다음 문항으로 넘어감)은 실패가 아니다.
+ */
+async function playBuiltin(url: string, opts: SpeakOptions): Promise<boolean> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await playUrl(url, opts);
+      return true;
+    } catch {
+      if (opts.signal?.aborted) return true; // 멈춘 것이지 실패가 아니다
+      if (attempt === 0) await wait(250, opts.signal);
+    }
+  }
+  return false;
 }
 
 async function speakNow(text: string, opts: SpeakOptions): Promise<'tts' | 'none'> {

@@ -367,10 +367,10 @@ function tagPair(e: Syllable, a: Syllable, tags: Set<ErrorTag>, nextExpected: Sy
     // 발음이 아니라 표기 문제라 '받침'으로 두어야 교사에게 쓸모 있는 통계가 된다.
     if (isComplexJong(e.jong) || isComplexJong(a.jong)) tags.add('겹받침');
     else if (nasalContext && NASALIZED[e.jong] === a.jong) tags.add('비음화');
-    else if (
-      liquidContext &&
-      ((e.jong === 'ㄴ' && a.jong === 'ㄹ') || (e.jong === 'ㄹ' && a.jong === 'ㄴ'))
-    ) {
+    else if (liquidContext && e.jong === 'ㄴ' && a.jong === 'ㄹ') {
+      // 🔴 ㄴ→ㄹ 한 방향만 유음화다. 반대쪽(설날→선날, 달님→단님)은 유음화가 아니라
+      //    그냥 받침 실수인데 예전에는 그것까지 「유음화」라고 불렀다
+      //    (2026-09-14 교차검증 codex·Gemini 일치, 실측 재현).
       tags.add('유음화');
     } else tags.add('받침');
   }
@@ -382,7 +382,14 @@ function tagCrossSyllable(
   actual: string[],
   pairs: Map<number, number>,
   tags: Set<ErrorTag>,
-): void {
+): { first: Set<number>; second: Set<number> } {
+  /**
+   * 연음·구개음화가 설명을 마친 자리. 앞글자와 뒷글자는 «설명되는 것»이 서로 다르다 —
+   * 앞글자는 받침이 비는 것이, 뒷글자는 첫소리가 바뀌는 것이 설명된다. 그래서 따로 센다
+   * (예전에는 한 덩이로 묶어서, 밥이→나비 처럼 앞글자 첫소리가 아예 다른 것까지 지웠다).
+   */
+  const first = new Set<number>();
+  const second = new Set<number>();
   for (let i = 0; i < expected.length - 1; i++) {
     const ai = pairs.get(i);
     const aiNext = pairs.get(i + 1);
@@ -398,19 +405,50 @@ function tagCrossSyllable(
     const jongSounds = splitJong(e1.jong);
     const moved = jongSounds[jongSounds.length - 1];
     const kept = jongSounds.length > 1 ? jongSounds[0] : '';
+    // 받침이 제자리에 있는 채로 «뒷글자 첫소리»만 바뀐 것들 — 앞글자는 멀쩡하다.
+    if (e1.jong === a1.jong && e2.cho !== a2.cho) {
+      // 순행 유음화: 칼날→칼랄 (앞 받침 ㄹ 때문에 뒤 ㄴ 이 ㄹ 로 들린다)
+      if (e1.jong === 'ㄹ' && e2.cho === 'ㄴ' && a2.cho === 'ㄹ') {
+        tags.add('유음화');
+        second.add(i + 1);
+        continue;
+      }
+      // ㄹ 의 비음화: 종로→종노 (앞 받침 때문에 뒤 ㄹ 이 ㄴ 으로 들린다)
+      if (e2.cho === 'ㄹ' && a2.cho === 'ㄴ' && e1.jong !== '' && e1.jong !== 'ㄹ') {
+        tags.add('비음화');
+        second.add(i + 1);
+        continue;
+      }
+    }
+
+    // 받침이 뒷글자 첫소리로 넘어간 것들. 뒷글자 첫소리는 ㅇ(연음) 또는 ㅎ(축약 구개음화)이다.
     const movedAway =
-      e1.jong !== '' && a1.jong === kept && e2.cho === 'ㅇ' && a2.cho !== 'ㅇ';
+      e1.jong !== '' &&
+      a1.jong === kept &&
+      (e2.cho === 'ㅇ' || e2.cho === 'ㅎ') &&
+      a2.cho !== e2.cho;
     if (!movedAway) continue;
+    // 🔴 겹받침 ㄾ(핥이다)은 넘어가는 소리가 ㅌ 이다 — e1.jong 이 아니라 «넘어간 소리»를 봐야 한다.
+    //    ㅎ 과 만나는 굳히다→구치다·닫히다→다치다 도 같은 구개음화다(2026-09-14 교차검증).
     const isPalatal =
-      (e1.jong === 'ㄷ' || e1.jong === 'ㅌ') &&
+      (moved === 'ㄷ' || moved === 'ㅌ') &&
       (e2.jung === 'ㅣ' || e2.jung === 'ㅕ') &&
       (a2.cho === 'ㅈ' || a2.cho === 'ㅊ');
 
-    if (isPalatal) tags.add('구개음화');
-    else if (a2.cho === moved || ASPIRATE_PAIRS[moved] === a2.cho || TENSE_PAIRS[moved] === a2.cho) {
+    if (isPalatal) {
+      tags.add('구개음화');
+      first.add(i);
+      second.add(i + 1);
+    } else if (
+      e2.cho === 'ㅇ' &&
+      (a2.cho === moved || ASPIRATE_PAIRS[moved] === a2.cho || TENSE_PAIRS[moved] === a2.cho)
+    ) {
       tags.add('연음');
+      first.add(i);
+      second.add(i + 1);
     }
   }
+  return { first, second };
 }
 
 /** 준말 표기(되/돼, 하여/해) 혼동 */
@@ -418,9 +456,15 @@ function tagAbbreviation(expected: string, actual: string, tags: Set<ErrorTag>):
   const pairs: [string, string][] = [
     ['돼', '되'],
     ['됐', '됬'],
+    // 본말을 준말로 줄여 쓴 것도 같은 실수다 — 되었다→됬다 는 초등에서 가장 흔하다.
+    ['되었', '됬'],
+    ['되어', '돼'],
+    ['하였', '했'],
     ['해', '하여'],
     ['봬', '뵈'],
-    ['왠', '웬'],
+    // 🔴 «왠/웬» 은 준말이 아니다 — 「웬일」의 웬은 관형사, 「왠지」의 왠은 «왜인지»의 준말로
+    //    서로 본말·준말 관계가 아니다(2026-09-14 교차검증 codex·Gemini 두 계열 일치, 실측 확인).
+    //    모음혼동으로 이미 잡히므로 여기서 빼는 것이 이름이 맞다.
   ];
   for (const [x, y] of pairs) {
     const ex = expected.includes(x);
@@ -497,6 +541,8 @@ export function grade(expectedRaw: string, actualRaw: string, opts: GradeOptions
   const marks: Mark[] = [];
   const extras: string[] = [];
   const pairs = new Map<number, number>();
+  /** 글자 하나하나에서 나온 태그. 합치는 것은 아래에서 «설명된 자리»를 뺀 뒤에 한다. */
+  const posTags = new Map<number, Set<ErrorTag>>();
   let wrongCount = 0;
 
   for (const op of ops) {
@@ -510,8 +556,14 @@ export function grade(expectedRaw: string, actualRaw: string, opts: GradeOptions
       if (lang === 'ko') {
         const de = decompose(eChars[op.ei]);
         const da = decompose(aChars[op.ai]);
-        if (de && da) tagPair(de, da, tags, decompose(eChars[op.ei + 1] ?? ''));
-        else tags.add('기타');
+        if (de && da) {
+          // 🔴 곧바로 tags 에 넣지 않는다. 연음·구개음화로 설명되는 자리는
+          //    그 자리에서 나온 «받침·자음혼동» 이 같은 사고의 그림자일 뿐이라,
+          //    둘 다 띄우면 아이가 읽는 설명이 둘로 갈려 요점이 흐려진다.
+          const at = new Set<ErrorTag>();
+          tagPair(de, da, at, decompose(eChars[op.ei + 1] ?? ''));
+          posTags.set(op.ei, at);
+        } else tags.add('기타');
       }
       // 영어는 글자 한 칸만 봐서는 «무슨 실수인지» 말할 수 없다 —
       // 묵음·겹글자·어미는 낱말 전체를 봐야 드러나므로 아래 tagSentence 가 맡는다.
@@ -532,10 +584,23 @@ export function grade(expectedRaw: string, actualRaw: string, opts: GradeOptions
   }
 
   if (lang === 'ko') {
-    tagCrossSyllable(eChars, aChars, pairs, tags);
+    const { first, second } = tagCrossSyllable(eChars, aChars, pairs, tags);
+    // 연음·구개음화가 설명한 «그 자리»에서는 그 사고의 그림자인 「받침·자음혼동」만 뺀다.
+    // ① 문장 다른 곳의 받침·자음혼동은 그대로 남는다(예전에는 태그를 통째로 지워서,
+    //    뒤쪽에서 진짜로 틀린 받침까지 사라졌다).
+    // ② 「겹받침」은 그림자가 아니다 — 앉았다→안잤다 에서 아이가 정말 어려워한 것은
+    //    겹받침이고, 선생님에게는 그 이름이 필요하다. 그래서 남긴다.
+    for (const [ei, at] of posTags) {
+      for (const t of at) {
+        // 앞글자에서 지울 것은 «비어 버린 받침» 하나뿐이다. 첫소리가 아예 다른 것
+        // (밥이→나비)은 연음과 무관한 실수이므로 남긴다.
+        if (t === '받침' && first.has(ei)) continue;
+        // 뒷글자에서 지울 것은 «넘어온 소리 때문에 바뀐 첫소리» 하나뿐이다.
+        if (t === '자음혼동' && second.has(ei)) continue;
+        tags.add(t);
+      }
+    }
     tagAbbreviation(expectedBase, actualBase, tags);
-    // 연음/구개음화가 잡혔으면 그 결과로 생긴 '받침' 태그는 중복이라 뺀다
-    if (tags.has('연음') || tags.has('구개음화')) tags.delete('받침');
   } else {
     tagSentence(expectedBase, actualBase, tags as Set<EnErrorTag>);
   }

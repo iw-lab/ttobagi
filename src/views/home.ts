@@ -139,6 +139,17 @@ export function homeView(): View {
     ),
     cards,
     recentBox,
+    h(
+      'a',
+      {
+        class: 'site-link',
+        href: 'https://ssamzip.com',
+        target: '_blank',
+        rel: 'noopener',
+        'data-gb': 'site-link',
+      },
+      '선행쌤 · 선생님이 만든 다른 수업 놀이 보기',
+    ),
   );
 
   return { el, title: '또박이 — 초등 받아쓰기' };

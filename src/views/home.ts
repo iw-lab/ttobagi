@@ -137,19 +137,19 @@ export function homeView(): View {
       h('div', { class: 'field-inline' }, h('span', { class: 'field-label' }, '이 기기에서 쓸 이름'), nameInput),
       h('p', { class: 'muted small' }, '이름 대신 번호나 별명을 써도 됩니다. 쓴 내용은 이 기기에만 저장되고 어디로도 보내지 않아요.'),
     ),
+    h('a', {
+      class: 'gb-site',
+      href: 'https://ssamzip.com',
+      target: '_blank',
+      rel: 'noopener',
+      'data-gb': 'site-link',
+      html:
+        '<span class="gb-site-ic"><svg class="gb-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg></span>' +
+        '<span class="gb-site-tx"><b>선행쌤</b><small>선생님이 만든 수업 놀이 더 보기</small></span>' +
+        '<span class="gb-site-go">가 보기<svg class="gb-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></span>',
+    }),
     cards,
     recentBox,
-    h(
-      'a',
-      {
-        class: 'site-link',
-        href: 'https://ssamzip.com',
-        target: '_blank',
-        rel: 'noopener',
-        'data-gb': 'site-link',
-      },
-      '선행쌤 · 선생님이 만든 다른 수업 놀이 보기',
-    ),
   );
 
   return { el, title: '또박이 — 초등 받아쓰기' };

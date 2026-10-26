@@ -139,7 +139,7 @@ export function homeView(): View {
     ),
     h('a', {
       class: 'gb-site',
-      href: 'https://ssamzip.com',
+      href: 'https://sunhaengssam.web.app',
       target: '_blank',
       rel: 'noopener',
       'data-gb': 'site-link',

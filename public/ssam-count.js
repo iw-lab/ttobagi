@@ -9,6 +9,9 @@
   var app = (me && me.dataset.app) || '';
   var hostOnly = !!(me && me.dataset.place === 'host');
   if (!app || typeof fetch !== 'function') return;
+  // 로컬 개발·시험 화면은 세지 않는다(출처 미등록 → 콘솔 CORS 오류가 게임 e2e 의 «콘솔 에러 0»을 깬다 · 2026-10-26 미현상 verify-all)
+  var h = location.hostname;
+  if (location.protocol === 'file:' || h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || /\.(test|localhost)$/.test(h)) return;
   var did = '';
   try {
     did = localStorage.getItem('ssam.did') || '';

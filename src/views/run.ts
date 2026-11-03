@@ -3,6 +3,7 @@ import { grade, STRICTNESS_LABEL, type Lang, type Strictness, markedAnswer } fro
 import { initials } from '../engine/hangul';
 import { firstLetters } from '../engine/english';
 import { playItem, stopAudio, unlockAudio, voiceStatus } from '../engine/speech';
+import { gbGate, gbFinish, gbLeave } from '../gb/gb-school.js';
 import {
   newId,
   RUN_MODE_LABEL,
@@ -72,6 +73,9 @@ export function runView(params: Params): View {
   let keyboardInput: HTMLInputElement | null = null;
   let destroyed = false;
   let revealTimer: number | undefined;
+  // 학교 대항 순위(school-hub 키트) — 이 받아쓰기 한 판(연습·시험 한 번) = 판 1개. FREE_PLAY라 이용권 화면은 안 뜬다.
+  let ticket: string | null = null;
+  let finished = false;
 
   const el = h('div', { class: 'view run-view' });
   const body = h('div', {});
@@ -109,6 +113,8 @@ export function runView(params: Params): View {
   }
 
   function finish(): void {
+    finished = true;
+    if (ticket) { const t = ticket; ticket = null; void gbFinish(t, true); }
     const attempt: Attempt = {
       id: newId('a'),
       listId: list!.id,
@@ -502,7 +508,12 @@ export function runView(params: Params): View {
   }
 
   void voiceStatus();
-  render();
+  // 판 시작 관문 — 허브가 살아 있으면 학교 점수용 영수증(ref)을 하나 받는다. 안 닿아도 그냥 시작한다(학교 점수만 없음).
+  body.append(h('section', { class: 'card' }, h('p', { class: 'muted' }, '준비하는 중…')));
+  void gbGate((ref) => {
+    ticket = ref;
+    if (!destroyed) render();
+  }, { kind: mode });
 
   return {
     el,
@@ -513,6 +524,8 @@ export function runView(params: Params): View {
       abort.abort();
       stopAudio();
       pad?.destroy();
+      // 결과까지 못 가고 중간에 나감(그만두기·다른 화면으로 이동) — 90초 안이면 이용권 환불
+      if (!finished && ticket) { const t = ticket; ticket = null; void gbLeave(t); }
     },
   };
 }

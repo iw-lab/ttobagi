@@ -9,3 +9,6 @@ scripts/en/.cache/
 
 # 인디스쿨 글용 화면 사진 (스크립트로 언제든 다시 찍는다)
 post-shots/
+
+# 학교 허브 비밀(키트)
+.secrets/

@@ -1,0 +1,14 @@
+{
+  "kit": "school-hub",
+  "version": "1.16.0 (2026-11-03)",
+  "id": "ttobagi",
+  "host": "pages",
+  "client": "src/gb",
+  "store": "do",
+  "freePlay": true,
+  "noCap": false,
+  "except": {
+    "S4": "받아쓰기는 선생님 급수표를 골라 푸는 퀴즈형 앱이라 time·survival 같은 아케이드 모드 카드가 안 맞는다 — 연습/시험/칠판모드/오답 4카드가 실제 기능이다.",
+    "B3": "같은 이유 — 첫 화면은 모드 그리드가 아니라 연습·급수표·칠판모드·내기록 4개 기능 카드라 classic·time·survival 종류 표지를 억지로 붙이면 거짓 표지가 된다."
+  }
+}

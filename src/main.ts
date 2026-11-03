@@ -1,4 +1,8 @@
+import './gb/gb-ui.css';
 import './styles.css';
+import { configureHub } from './gb/hubnet.js';
+import { configureSchool } from './gb/gb-school.js';
+import { bindFullscreenButton } from './gb/gb-fullscreen.js';
 import { getSettings } from './engine/store';
 import { preloadRecordingIndex, stopAudio } from './engine/speech';
 import { builtinList } from './engine/curriculum';
@@ -19,6 +23,12 @@ import type { Params, View } from './views/view';
 
 const app = document.getElementById('app');
 if (!app) throw new Error('#app 을 찾을 수 없습니다');
+
+// 학교 대항 순위(school-hub 키트) — 중계 없이 허브 워커로 바로(직결, Pages 함수 하루 10만 공용 한도를 안 쓴다).
+// 또박이는 서버·로그인·요금이 없는 앱이지만, 학교 순위 한 가지만은 이 허브로 올린다(이름·답 등 학생 데이터는 여전히 0 전송).
+configureHub({ key: 'ttobagi.hub.v1', direct: 'https://ttobagi-hub.simssijjang-a04.workers.dev' });
+// 판 자체가 문제 풀이인 앱(받아쓰기 한 판 = 연습·시험 한 번) — 문제 풀고 이용권 화면은 건너뛴다(허브 FREE_PLAY).
+configureSchool({ freePlay: true, playWord: '시험' });
 
 /**
  * 어느 화면에 있든 첫 화면으로 돌아갈 길을 하나 둔다.
@@ -45,6 +55,7 @@ const bar = h(
   h(
     'nav',
     { class: 'appbar-nav' },
+    h('button', { class: 'gb-icon', type: 'button', id: 'btnFull' }),
     h('a', { class: 'appbar-link', href: '#/curriculum' }, '급수표'),
     h('a', { class: 'appbar-link', href: '#/lists' }, '내 급수표'),
     h('a', { class: 'appbar-link', href: '#/report' }, '내 기록'),
@@ -52,6 +63,7 @@ const bar = h(
   ),
 );
 document.body.insertBefore(bar, app);
+bindFullscreenButton(bar.querySelector<HTMLElement>('#btnFull'));
 
 function markCurrent(): void {
   const hash = location.hash || '#/';

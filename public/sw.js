@@ -23,6 +23,8 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
+  // 학교 대항 순위(school-hub 키트 중계) — 캐시하면 cache-first 가 옛 순위를 굳힌다. 늘 네트워크로.
+  if (url.pathname.startsWith('/api/')) return;
 
   // 화면 이동: 온라인이면 새로 받고, 끊겨 있으면 담아 둔 화면을 준다
   if (request.mode === 'navigate') {

@@ -1,6 +1,7 @@
 import { getLastListId, getLists, getWho, setWho } from '../engine/store';
 import { sheetsOf } from '../engine/curriculum';
 import { voiceStatus } from '../engine/speech';
+import { mountSchoolRank } from '../gb/gb-school.js';
 import { button, formatDate, h, modeHelp, navigate } from '../ui/dom';
 import type { View } from './view';
 
@@ -125,9 +126,13 @@ export function homeView(): View {
         ),
       );
 
+  // 학교 대항 순위 — 첫 화면 맨 위(접지 않음). 선행쌤 배너는 school-hub 키트가 이 카드 바로 다음에 저절로 붙인다.
+  const schoolRank = h('div', { id: 'schoolRank' });
+
   const el = h(
     'div',
     { class: 'view' },
+    schoolRank,
     h(
       'section',
       { class: 'card hero' },
@@ -137,20 +142,11 @@ export function homeView(): View {
       h('div', { class: 'field-inline' }, h('span', { class: 'field-label' }, '이 기기에서 쓸 이름'), nameInput),
       h('p', { class: 'muted small' }, '이름 대신 번호나 별명을 써도 됩니다. 쓴 내용은 이 기기에만 저장되고 어디로도 보내지 않아요.'),
     ),
-    h('a', {
-      class: 'gb-site',
-      href: 'https://sunhaengssam.web.app',
-      target: '_blank',
-      rel: 'noopener',
-      'data-gb': 'site-link',
-      html:
-        '<span class="gb-site-ic"><svg class="gb-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/></svg></span>' +
-        '<span class="gb-site-tx"><b>선행쌤</b><small>선생님이 만든 수업 놀이 더 보기</small></span>' +
-        '<span class="gb-site-go">가 보기<svg class="gb-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></span>',
-    }),
     cards,
     recentBox,
   );
+
+  mountSchoolRank(schoolRank);
 
   return { el, title: '또박이 — 초등 받아쓰기' };
 }

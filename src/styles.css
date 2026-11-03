@@ -21,6 +21,19 @@
   --shadow: 0 2px 10px rgba(24, 44, 84, 0.07);
   --tap: 52px;
   color-scheme: light dark;
+
+  /* school-hub 키트 토큰 — 키트 기본값은 어두운 바탕용이라 또박이의 밝은 바탕에선 글자가 안 보였다(게이트 B14).
+     ttobagi 자체 색 변수를 그대로 가리키면 아래 다크 모드 쿼리를 다시 쓰지 않아도 같이 따라간다. */
+  --gb-bg: var(--bg);
+  --gb-panel: var(--card);
+  --gb-panel-2: var(--card);
+  --gb-line: var(--line);
+  --gb-text: var(--ink);
+  --gb-dim: var(--muted);
+  --gb-accent: var(--brand);
+  --gb-accent-ink: #ffffff;
+  --gb-gold: var(--brand-dark);
+  --gb-danger: var(--no);
 }
 
 @media (prefers-color-scheme: dark) {
